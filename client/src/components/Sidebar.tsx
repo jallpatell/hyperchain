@@ -26,7 +26,7 @@ export function Sidebar() {
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
             <Layout className="w-5 h-5 text-primary-foreground" />
           </div>
-          <h1 className="font-bold text-xl tracking-tight">FlowBuoy</h1>
+          <h1 className="font-bold text-xl tracking-tight">HyperChain</h1>
         </div>
       </div>
 
@@ -58,11 +58,11 @@ export function Sidebar() {
         <Link href="/">
            <div className="flex items-center gap-3 px-4 py-2 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted transition-colors">
               <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
-                JD
+                JP
               </div>
               <div className="flex flex-col">
-                <span className="text-sm font-medium">Jane Doe</span>
-                <span className="text-xs text-muted-foreground">Admin Workspace</span>
+                <span className="text-sm font-medium">Jal Patel</span>
+                <span className="text-xs text-muted-foreground">Full-Stack Engineer</span>
               </div>
            </div>
         </Link>

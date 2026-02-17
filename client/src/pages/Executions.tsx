@@ -13,7 +13,7 @@ import { CheckCircle2, XCircle, Clock, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function Executions() {
-  const { data: executions, isLoading } = useExecutions();
+  const { data: executions, isLoading, error } = useExecutions();
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -43,8 +43,13 @@ export default function Executions() {
         </div>
 
         <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-          <Table>
-            <TableHeader className="bg-muted/30">
+          {error ? (
+            <div className="p-8 text-center text-red-500">
+              Error loading executions: {error.message}
+            </div>
+          ) : (
+            <Table>
+            <TableHeader className="bg-muted/30 font-extrabold text-[#000000]">
               <TableRow>
                 <TableHead className="w-[100px]">Status</TableHead>
                 <TableHead>Execution ID</TableHead>
@@ -52,18 +57,19 @@ export default function Executions() {
                 <TableHead>Started At</TableHead>
                 <TableHead>Duration</TableHead>
                 <TableHead className="text-right">Action</TableHead>
+                <TableHead > Workflow Name</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     Loading executions...
                   </TableCell>
                 </TableRow>
               ) : executions?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-12">
+                  <TableCell colSpan={7} className="text-center py-12">
                     <div className="flex flex-col items-center gap-2">
                        <Clock className="w-8 h-8 text-muted-foreground/50" />
                        <p className="font-medium">No executions yet</p>
@@ -80,18 +86,18 @@ export default function Executions() {
                         <span className="capitalize text-sm font-medium">{execution.status}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      #{execution.id}
+                    <TableCell className="font-mono font-bold text-center  text-[#c7700c]">
+                      #0{execution.id}
                     </TableCell>
                     <TableCell>
-                       <Badge variant="outline" className="font-mono">
+                       <Badge variant="outline" className="font-mono  text-green-600">
                           ID: {execution.workflowId}
                        </Badge>
                     </TableCell>
                     <TableCell className="text-sm">
                       {execution.startedAt ? format(new Date(execution.startedAt), "MMM d, HH:mm:ss") : "-"}
                     </TableCell>
-                    <TableCell className="text-sm font-mono text-muted-foreground">
+                    <TableCell className="text-sm font-mono text-blue-600">
                       {execution.finishedAt && execution.startedAt 
                         ? `${(new Date(execution.finishedAt).getTime() - new Date(execution.startedAt).getTime())}ms` 
                         : "-"
@@ -100,11 +106,15 @@ export default function Executions() {
                     <TableCell className="text-right">
                        <Badge variant="outline" className="cursor-pointer hover:bg-muted">View Details</Badge>
                     </TableCell>
+                    <TableCell className="font-medium font-mono text-[#EF486F] font-extrabold text-sm">
+                       {execution.name || "Unknown Workflow"}
+                    </TableCell>  
                   </TableRow>
                 ))
               )}
             </TableBody>
           </Table>
+          )}
         </div>
       </div>
     </div>

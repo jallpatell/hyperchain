@@ -2,6 +2,18 @@
 import { z } from 'zod';
 import { insertWorkflowSchema, insertExecutionSchema, insertCredentialSchema, workflows, executions, credentials } from './schema';
 
+// Define execution with name schema
+const executionWithNameSchema = z.object({
+  id: z.number(),
+  workflowId: z.number(),
+  status: z.string(),
+  startedAt: z.string().nullable(),
+  finishedAt: z.string().nullable(),
+  data: z.any().nullable(),
+  error: z.string().nullable(),
+  name: z.string().nullable(),
+});
+
 // ============================================
 // SHARED ERROR SCHEMAS
 // ============================================
@@ -82,14 +94,14 @@ export const api = {
         workflowId: z.string().optional(),
       }).optional(),
       responses: {
-        200: z.array(z.custom<typeof executions.$inferSelect>()),
+        200: z.array(executionWithNameSchema),
       },
     },
     get: {
       method: 'GET' as const,
       path: '/api/executions/:id' as const,
       responses: {
-        200: z.custom<typeof executions.$inferSelect>(),
+        200: executionWithNameSchema,
         404: errorSchemas.notFound,
       },
     }

@@ -54,9 +54,9 @@ export default function Workflows() {
           <div className="flex items-center justify-between mb-8">
             <div>
                <h1 className="text-3xl font-bold tracking-tight text-foreground">Workflows</h1>
-               <p className="text-muted-foreground mt-1">Manage and automate your business logic.</p>
+               <p className="text-muted-foreground mt-1">Create and Manage AI Automations.</p>
             </div>
-            <Button onClick={() => setIsCreateOpen(true)} className="gap-2 shadow-lg shadow-primary/20">
+            <Button onClick={() => setIsCreateOpen(true)} className="gap-2  shadow-primary/20">
               <Plus className="w-4 h-4" />
               New Workflow
             </Button>

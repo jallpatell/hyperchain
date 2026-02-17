@@ -18,7 +18,7 @@ export const workflows = pgTable("workflows", {
 });
 
 export const executions = pgTable("executions", {
-  id: serial("id").primaryKey(),
+  id: serial("id").primaryKey(),  
   workflowId: integer("workflow_id").references(() => workflows.id).notNull(),
   status: text("status").notNull(), // 'pending', 'running', 'completed', 'failed'
   startedAt: timestamp("started_at").defaultNow(),
@@ -29,7 +29,7 @@ export const executions = pgTable("executions", {
 
 export const credentials = pgTable("credentials", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),
+  name: text("name"),
   type: text("type").notNull(), // 'openai', 'postgres', 'github', etc.
   data: jsonb("data").notNull(), // Encrypted/stored credential details
   createdAt: timestamp("created_at").defaultNow(),
@@ -62,6 +62,7 @@ export type UpdateWorkflowRequest = Partial<InsertWorkflow>;
 
 // Execution Types
 export type Execution = typeof executions.$inferSelect;
+export type ExecutionWithName = Execution & { name: string };
 export type InsertExecution = z.infer<typeof insertExecutionSchema>;
 
 // Credential Types

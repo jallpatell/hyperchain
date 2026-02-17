@@ -69,7 +69,7 @@ export default function Credentials() {
                     
                     <Dialog open={isOpen} onOpenChange={setIsOpen}>
                         <DialogTrigger asChild>
-                            <Button className="gap-2 shadow-lg shadow-primary/20">
+                            <Button className="gap-2">
                                 <Key className="w-4 h-4" />
                                 New Credential
                             </Button>
