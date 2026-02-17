@@ -64,12 +64,22 @@ export class DatabaseStorage implements IStorage {
   // Executions
   async getExecutions(workflowId?: number): Promise<Execution[]> {
     if (workflowId) {
-      return await db.select()
+      return await db.select({
+        ...executions,
+        name: workflows.name,
+      })
         .from(executions)
+        .leftJoin(workflows, eq(executions.workflowId, workflows.id))
         .where(eq(executions.workflowId, workflowId))
         .orderBy(desc(executions.startedAt));
     }
-    return await db.select().from(executions).orderBy(desc(executions.startedAt));
+    return await db.select({
+      ...executions,
+      name: workflows.name,
+    })
+      .from(executions)
+      .leftJoin(workflows, eq(executions.workflowId, workflows.id))
+      .orderBy(desc(executions.startedAt));
   }
 
   async getExecution(id: number): Promise<Execution | undefined> {
