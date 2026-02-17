@@ -19,7 +19,7 @@ import "@xyflow/react/dist/style.css";
 import { WorkflowNode, WorkflowEdge } from "@shared/schema";
 import { NodeInspector } from "./NodeInspector";
 import { Button } from "./ui/button";
-import { Plus, Play, Save, ChevronLeft, Bot, Webhook, Globe, Code, Database, Mail } from "lucide-react";
+import { Plus, Play, Save, ChevronLeft, Webhook, Globe, Code, Bot, Database, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCreateWorkflow, useUpdateWorkflow, useExecuteWorkflow } from "@/hooks/use-workflows";
 
@@ -27,12 +27,60 @@ import { useCreateWorkflow, useUpdateWorkflow, useExecuteWorkflow } from "@/hook
 // For now, default nodes styled with CSS are fine for the MVP
 
 const nodeTypesList = [
-  { type: 'webhook', label: 'Webhook', icon: Webhook, color: 'bg-emerald-500' },
-  { type: 'http-request', label: 'HTTP Request', icon: Globe, color: 'bg-blue-500' },
-  { type: 'code', label: 'Code', icon: Code, color: 'bg-orange-500' },
-  { type: 'ai-chat', label: 'AI Chat', icon: Bot, color: 'bg-purple-500' },
-  { type: 'database', label: 'Database', icon: Database, color: 'bg-indigo-500' },
-  { type: 'email', label: 'Email', icon: Mail, color: 'bg-red-500' },
+  {
+    type: "webhook",
+    label: "Webhook",
+    icon: Webhook,
+    // Amber-orange — matches your #c7700c execution ID accent
+    color: "bg-[#c7700c] text-[#c7700c] border border-[#c7700c]",
+    iconColor: "text-[#c7700c]",
+    badge: "bg-[#c7700c]/10 text-[#c7700c] border-[#c7700c]/20",
+  },
+  {
+    type: "http-request",
+    label: "HTTP Request",
+    icon: Globe,
+    // Blue — matches your duration font-mono text-blue-600
+    color: "bg-blue-500 text-blue-600 border border-blue-200",
+    iconColor: "text-blue-600",
+    badge: "bg-blue-500 text-blue-600 border-blue-200",
+  },
+  {
+    type: "code",
+    label: "Code",
+    icon: Code,
+    // Green — matches your workflowId Badge text-green-600
+    color: "bg-green-500 text-green-600 border border-green-200",
+    iconColor: "text-green-600",
+    badge: "bg-green-500 text-green-600 border-green-200",
+  },
+  {
+    type: "ai-chat",
+    label: "AI Chat",
+    icon: Bot,
+    // Hot pink/rose — matches your #EF486F workflow name accent
+    color: "bg-[#EF486F] text-[#EF486F] border border-[#EF486F]",
+    iconColor: "text-[#EF486F]",
+    badge: "bg-[#EF486F] text-[#EF486F] border-[#EF486F]",
+  },
+  {
+    type: "database",
+    label: "Database",
+    icon: Database,
+    // Muted/secondary — matches your Pending badge and muted-foreground UI
+    color: "bg-purple-500 text-purple-500 border border-purple-200",
+    iconColor: "text-purple-500",
+    badge: "bg-purple-500 text-purple-500 border-purple-200",
+  },
+  {
+    type: "email",
+    label: "Email",
+    icon: Mail,
+    // Red/destructive — matches your Failed badge variant="destructive"
+    color: "bg-red-500 text-red-500 border border-red-200",
+    iconColor: "text-red-500",
+    badge: "bg-red-500 text-red-500 border-red-200",
+  },
 ];
 
 interface CanvasProps {
