@@ -30,6 +30,7 @@ interface NodeInspectorProps {
 
 export function NodeInspector({ node, isOpen, onClose, onUpdate, onDelete }: NodeInspectorProps) {
   const [formData, setFormData] = useState<Record<string, any>>({});
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (node) {
@@ -53,17 +54,7 @@ export function NodeInspector({ node, isOpen, onClose, onUpdate, onDelete }: Nod
         <SheetHeader className="mb-6">
           <div className="flex items-center justify-between">
             <SheetTitle className="text-xl capitalize">{node.type.replace('-', ' ')} Node</SheetTitle>
-            <Button 
-              variant="destructive" 
-              size="icon" 
-              className="h-8 w-8"
-              onClick={() => {
-                onDelete(node.id);
-                onClose();
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            
           </div>
           <SheetDescription>
             Configure the parameters for this step in your workflow.
@@ -201,6 +192,56 @@ export function NodeInspector({ node, isOpen, onClose, onUpdate, onDelete }: Nod
             <div className="bg-muted/50 p-3 rounded text-xs font-mono text-muted-foreground">
               {JSON.stringify({ id: node.id, ...formData }, null, 2)}
             </div>
+          </div>
+
+
+          <div>
+           <Button
+              variant="destructive"
+              size="icon"
+              className="w-100 bg-[#EF486F] p-3"
+              onClick={() => { setConfirmOpen(true)}}
+            >
+              <Trash2 className="h-6 w-6" />
+              Delete Current Node
+            </Button>
+
+            {confirmOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                  <div className="bg-background border rounded-xl shadow-xl p-6 w-[350px] animate-in fade-in zoom-in-95">
+                    
+                    <h3 className="text-lg font-semibold mb-2">
+                      Delete Current Node !
+                    </h3>
+
+                    <p className="text-sm text-muted-foreground mb-6">
+                      <span className="font-mono text-red-600">WARNING:</span> This action cannot be undone and may affect downstream nodes. Are you sure you want to proceed?
+                    </p>
+
+                    <div className="flex justify-end gap-3">
+                      <Button
+                        variant="outline"
+                        onClick={() => setConfirmOpen(false)}
+                      >
+                        No
+                      </Button>
+
+                      <Button
+                        variant="destructive"
+                        className="bg-[#EF486F]"
+                        onClick={() => {
+                          onDelete(node.id);
+                          onClose();
+                          setConfirmOpen(false);
+                        }}
+                      >
+                        Yes, Delete
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
           </div>
         </div>
       </SheetContent>

@@ -9,7 +9,7 @@ import {
     TableRow 
 } from "@/components/ui/table";
 import { format } from "date-fns";
-import { CheckCircle2, XCircle, Clock, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Loader2,   Webhook, Globe, Code, Bot, Database, Mail } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function Executions() {
