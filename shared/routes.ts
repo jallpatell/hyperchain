@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 import { insertWorkflowSchema, insertExecutionSchema, insertCredentialSchema, workflows, executions, credentials } from './schema';
 
@@ -14,9 +13,7 @@ const executionWithNameSchema = z.object({
   name: z.string().nullable(),
 });
 
-// ============================================
 // SHARED ERROR SCHEMAS
-// ============================================
 export const errorSchemas = {
   validation: z.object({
     message: z.string(),
@@ -30,9 +27,7 @@ export const errorSchemas = {
   }),
 };
 
-// ============================================
 // API CONTRACT
-// ============================================
 export const api = {
   workflows: {
     list: {
@@ -134,9 +129,7 @@ export const api = {
   }
 };
 
-// ============================================
 // HELPER FUNCTION
-// ============================================
 export function buildUrl(path: string, params?: Record<string, string | number>): string {
   let url = path;
   if (params) {

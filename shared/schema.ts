@@ -9,7 +9,7 @@ import { z } from "zod";
 export const workflows = pgTable("workflows", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  description: text("description"),
+  description: text("description").default(""),
   isActive: boolean("is_active").default(false),
   nodes: jsonb("nodes").default([]).notNull(), // Stores the visual node configuration
   edges: jsonb("edges").default([]).notNull(), // Stores the visual connection configuration

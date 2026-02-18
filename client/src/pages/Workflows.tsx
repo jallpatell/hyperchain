@@ -30,6 +30,7 @@ export default function Workflows() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newWorkflowName, setNewWorkflowName] = useState("");
+  const [newWorkflowDescription, setNewWorkflowDescription] = useState("");
 
   const filteredWorkflows = workflows?.filter(w => 
     w.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -38,9 +39,10 @@ export default function Workflows() {
   const handleCreate = async () => {
     if (!newWorkflowName.trim()) return;
     try {
-        await createMutation.mutateAsync({ name: newWorkflowName, nodes: [], edges: [] });
+        await createMutation.mutateAsync({ name: newWorkflowName, description: newWorkflowDescription, nodes: [], edges: [] });
         setIsCreateOpen(false);
         setNewWorkflowName("");
+        setNewWorkflowDescription("");
     } catch (e) {
         console.error(e);
     }
@@ -153,7 +155,7 @@ export default function Workflows() {
           <DialogHeader>
             <DialogTitle>Create New Workflow</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 border border-1px border-gray-200 rounded-md p-4">
             <div className="space-y-2">
               <Label htmlFor="name">Workflow Name</Label>
               <Input 
@@ -161,8 +163,17 @@ export default function Workflows() {
                 placeholder="My Awesome Workflow" 
                 value={newWorkflowName}
                 onChange={(e) => setNewWorkflowName(e.target.value)}
-              />
+              /> 
             </div>
+          <div className="">
+                <Label htmlFor="description" > Workflow Description</Label>
+              <Input 
+                id="description" 
+                placeholder="Workflow descrition (Optional)" 
+                value={newWorkflowDescription}
+                onChange={(e) => setNewWorkflowDescription(e.target.value)}
+              />
+          </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>

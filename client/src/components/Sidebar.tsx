@@ -5,7 +5,8 @@ import {
   Key, 
   Settings, 
   Plus, 
-  Layout
+  Layout, 
+  Container
 } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -15,8 +16,8 @@ export function Sidebar() {
   const navItems = [
     { icon: Workflow, label: "Workflows", href: "/" },
     { icon: Activity, label: "Executions", href: "/executions" },
+    { icon: Container, label: "Templates", href: "/templates" },
     { icon: Key, label: "Credentials", href: "/credentials" },
-    // { icon: Settings, label: "Settings", href: "/settings" },
   ];
 
   return (
@@ -24,7 +25,7 @@ export function Sidebar() {
       <div className="p-6 border-b border-border">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <Layout className="w-5 h-5 text-primary-foreground" />
+            <img src='favicon.png' alt='logo' className="h-5 w-5" />
           </div>
           <h1 className="font-bold text-xl tracking-tight">HyperChain</h1>
         </div>
@@ -55,14 +56,13 @@ export function Sidebar() {
       </div>
 
       <div className="p-4 border-t border-border">
-        <Link href="/">
+        <Link href="/settings">
            <div className="flex items-center gap-3 px-4 py-2 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted transition-colors">
               <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
-                JP
+                <Settings />
               </div>
               <div className="flex flex-col">
-                <span className="text-sm font-medium">Jal Patel</span>
-                <span className="text-xs text-muted-foreground">Full-Stack Engineer</span>
+                <span className="text-sm font-medium">Settings</span>
               </div>
            </div>
         </Link>
