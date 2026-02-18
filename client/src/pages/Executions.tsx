@@ -105,6 +105,7 @@ export default function Executions() {
                     </TableCell>
                     <TableCell className="text-right">
                        <Badge variant="outline" className="cursor-pointer hover:bg-muted">View Details</Badge>
+                       
                     </TableCell>
                     <TableCell className="font-medium font-mono text-[#EF486F] font-extrabold text-sm">
                        {execution.name || "Unknown Workflow"}

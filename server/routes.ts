@@ -12,9 +12,12 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+
   // Register AI Integration Routes
   registerChatRoutes(app);
   registerImageRoutes(app);
+
 
   // --- Workflows ---
   app.get(api.workflows.list.path, async (req, res) => {
@@ -73,22 +76,24 @@ export async function registerRoutes(
     const workflow = await storage.getWorkflow(workflowId);
     if (!workflow) return res.status(404).json({ message: 'Workflow not found' });
 
-    // Start execution asynchronously (or synchronously for MVP simplicity)
-    // For MVP, we'll wait for it or just start it. 
-    // Let's create an execution record first.
+    
+// Start execution asynchronously (or synchronously for MVP simplicity)
+// For MVP, we'll wait for it or just start it. 
+// Let's create an execution record first.
     const execution = await storage.createExecution({
       workflowId,
       status: 'pending',
       data: {}
     });
 
-    // Run in background (dont await)
+// Run in background (dont await)
     executeWorkflow(workflow, execution.id).catch(console.error);
 
     res.json({ executionId: execution.id });
   });
 
-  // --- Executions ---
+
+// --- Executions ---
   app.get(api.executions.list.path, async (req, res) => {
     const workflowId = req.query.workflowId ? Number(req.query.workflowId) : undefined;
     const executions = await storage.getExecutions(workflowId);
@@ -100,6 +105,7 @@ export async function registerRoutes(
     if (!execution) return res.status(404).json({ message: 'Execution not found' });
     res.json(execution);
   });
+
 
   // --- Credentials ---
   app.get(api.credentials.list.path, async (req, res) => {
@@ -127,6 +133,7 @@ export async function registerRoutes(
     await storage.deleteCredential(Number(req.params.id));
     res.status(204).send();
   });
+
 
   // Seed Data
   if ((await storage.getWorkflows()).length === 0) {

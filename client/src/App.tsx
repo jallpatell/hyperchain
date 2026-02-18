@@ -8,6 +8,8 @@ import Workflows from "@/pages/Workflows";
 import Editor from "@/pages/Editor";
 import Executions from "@/pages/Executions";
 import Credentials from "@/pages/Credentials";
+import Templates from "@/pages/Templates";
+import Settings from "@/pages/Settings";
 
 function Router() {
   return (
@@ -16,6 +18,8 @@ function Router() {
       <Route path="/workflow/:id" component={Editor} />
       <Route path="/executions" component={Executions} />
       <Route path="/credentials" component={Credentials} />
+      <Route path="/templates" component={Templates} />
+      <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>
   );

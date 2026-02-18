@@ -8,18 +8,14 @@ import { serveStatic } from "./static";
 const app = express();
 const httpServer = createServer(app);
 
-/**
- * Extend IncomingMessage to store raw body
- */
+// Extend incoming message to store raw body for signature verification.
 declare module "http" {
   interface IncomingMessage {
     rawBody?: Buffer;
   }
 }
 
-/**
- * JSON body parser with raw body capture
- */
+// JSON body parser with raw body capture.
 app.use(
   express.json({
     verify: (req, _res, buf) => {
@@ -30,9 +26,7 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
-/**
- * Logger utility
- */
+// Logger Utility.
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -44,9 +38,7 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
-/**
- * API request logger middleware
- */
+// API Request logger middleware.
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -77,15 +69,12 @@ app.use((req, res, next) => {
   next();
 });
 
-/**
- * Bootstrap Server
- */
+
+// Bootstrap Server.
 (async () => {
   await registerRoutes(httpServer, app);
 
-  /**
-   * Global error handler
-   */
+// Global error handler. 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
@@ -99,9 +88,7 @@ app.use((req, res, next) => {
     return res.status(status).json({ message });
   });
 
-  /**
-   * Setup frontend
-   */
+// Setup Frontend. 
   if (process.env.NODE_ENV === "production") {
     serveStatic(app);
   } else {
@@ -109,9 +96,8 @@ app.use((req, res, next) => {
     await setupVite(httpServer, app);
   }
 
-  /**
-   * Start server (Windows-safe, IPv4-safe)
-   */
+
+// Starter Server. [ Windows Safe, IPv4 Safe ]
   const port = parseInt(process.env.PORT || "5000", 10);
 
   httpServer.listen(port, "127.0.0.1", () => {
