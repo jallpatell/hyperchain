@@ -43,6 +43,7 @@ export default function Workflows() {
         setIsCreateOpen(false);
         setNewWorkflowName("");
         setNewWorkflowDescription("");
+        setSearchTerm("");
     } catch (e) {
         console.error(e);
     }
@@ -115,7 +116,7 @@ export default function Workflows() {
                             className="text-destructive focus:text-destructive"
                             onClick={() => deleteMutation.mutate(workflow.id)}
                           >
-                            Delete
+                            Delete                                             
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
