@@ -9,9 +9,14 @@ import {
   type InsertCredential,
   type Workflow,
   type Execution,
-  type Credential
+  type Credential,
+  updateExecutionSchema
 } from "@shared/schema";
-import { eq, desc } from "drizzle-orm";
+import { exec } from "child_process";
+import { eq, desc, getTableColumns } from "drizzle-orm";
+import { z } from "zod";
+
+type UpdateExecution = z.infer<typeof updateExecutionSchema>;
 
 export interface IStorage {
   // Workflows
@@ -25,7 +30,7 @@ export interface IStorage {
   getExecutions(workflowId?: number): Promise<Execution[]>;
   getExecution(id: number): Promise<Execution | undefined>;
   createExecution(execution: InsertExecution): Promise<Execution>;
-  updateExecution(id: number, updates: Partial<InsertExecution>): Promise<Execution>;
+  updateExecution(id: number, updates: UpdateExecution): Promise<Execution>;
 
   // Credentials
   getCredentials(): Promise<Credential[]>;
@@ -58,6 +63,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteWorkflow(id: number): Promise<void> {
+    await db.delete(executions).where(eq(executions.workflowId, id));
     await db.delete(workflows).where(eq(workflows.id, id));
   }
 
@@ -65,7 +71,7 @@ export class DatabaseStorage implements IStorage {
   async getExecutions(workflowId?: number): Promise<Execution[]> {
     if (workflowId) {
       return await db.select({
-        ...executions,
+        ...getTableColumns(executions),
         name: workflows.name,
       })
         .from(executions)
@@ -74,7 +80,7 @@ export class DatabaseStorage implements IStorage {
         .orderBy(desc(executions.startedAt));
     }
     return await db.select({
-      ...executions,
+      ...getTableColumns(executions),
       name: workflows.name,
     })
       .from(executions)
@@ -92,7 +98,7 @@ export class DatabaseStorage implements IStorage {
     return execution;
   }
 
-  async updateExecution(id: number, updates: Partial<InsertExecution>): Promise<Execution> {
+  async updateExecution(id: number, updates: UpdateExecution): Promise<Execution> {
     const [updated] = await db.update(executions)
       .set(updates)
       .where(eq(executions.id, id))

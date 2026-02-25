@@ -4,7 +4,7 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { executeWorkflow } from "./execution";
+import { executeWorkflow, registerSSEListener, unregisterSSEListener } from "./execution";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -68,18 +68,17 @@ export async function registerRoutes(
     const workflow = await storage.getWorkflow(workflowId);
     if (!workflow) return res.status(404).json({ message: 'Workflow not found' });
 
-    
-// Start execution asynchronously (or synchronously for MVP simplicity)
-// For MVP, we'll wait for it or just start it. 
-// Let's create an execution record first.
+    // Extract trigger data from request body (optional)
+    const triggerData = req.body?.triggerData || undefined;
+
     const execution = await storage.createExecution({
       workflowId,
       status: 'pending',
       data: {}
     });
 
-// Run in background (dont await)
-    executeWorkflow(workflow, execution.id).catch(console.error);
+    // Run in background with trigger data
+    executeWorkflow(workflow, execution.id, triggerData).catch(console.error);
 
     res.json({ executionId: execution.id });
   });
@@ -96,6 +95,38 @@ export async function registerRoutes(
     const execution = await storage.getExecution(Number(req.params.id));
     if (!execution) return res.status(404).json({ message: 'Execution not found' });
     res.json(execution);
+  });
+
+  // SSE stream endpoint for execution progress
+  app.get("/api/executions/:id/stream", (req, res) => {
+    const executionId = Number(req.params.id);
+
+    // Set up SSE headers
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+      "Access-Control-Allow-Origin": "*",
+    });
+
+    // Create a writer function that sends SSE data
+    const writer = (data: string) => {
+      res.write(data);
+    };
+
+    // Register listener
+    registerSSEListener(executionId, writer);
+
+    // Handle client disconnect
+    req.on("close", () => {
+      unregisterSSEListener(executionId, writer);
+      res.end();
+    });
+
+    res.on("error", () => {
+      unregisterSSEListener(executionId, writer);
+      res.end();
+    });
   });
 
 
