@@ -1,18 +1,6 @@
 
 import { storage } from "./storage";
 import { type Workflow, type WorkflowNode, type WorkflowEdge } from "@shared/schema";
-import { openai } from "./replit_integrations/chat/routes"; // Use OpenAI client from integration
-// Note: We might need to adjust the import if openai is not exported from routes.
-// Actually, openai is exported from ./replit_integrations/chat/index which re-exports from ./storage or ./client
-// Let's check imports. blueprint said:
-// Chat module: index.ts re-exports registerChatRoutes and chatStorage. 
-// It doesn't explicitly export openai client in the list, but server/replit_integrations/chat/routes.ts imports it from ./storage (wait, routes imports from storage? No, usually client).
-// Let's check the file content I wrote.
-// server/replit_integrations/chat/routes.ts imports OpenAI from "openai" directly and instantiates it. 
-// It does NOT export it.
-// server/replit_integrations/image/client.ts DOES export openai.
-// I will use `import OpenAI from "openai"` and instantiate it here or reuse if possible.
-// For now, I'll instantiate a new client or use the image one if it has the same config.
 import OpenAI from "openai";
 
 const openaiClient = new OpenAI({

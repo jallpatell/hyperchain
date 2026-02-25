@@ -4,20 +4,12 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { registerChatRoutes } from "./replit_integrations/chat";
-import { registerImageRoutes } from "./replit_integrations/image";
 import { executeWorkflow } from "./execution";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-
-
-  // Register AI Integration Routes
-  registerChatRoutes(app);
-  registerImageRoutes(app);
-
 
   // --- Workflows ---
   app.get(api.workflows.list.path, async (req, res) => {
