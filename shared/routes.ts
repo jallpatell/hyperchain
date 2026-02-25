@@ -8,7 +8,7 @@ const executionWithNameSchema = z.object({
   status: z.string(),
   startedAt: z.string().nullable(),
   finishedAt: z.string().nullable(),
-  data: z.any().nullable(),
+  data: z.any().nullable(), 
   error: z.string().nullable(),
   name: z.string().nullable(),
 });

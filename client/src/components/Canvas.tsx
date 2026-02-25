@@ -14,74 +14,106 @@ import {
   Panel,
   ReactFlowProvider,
   useReactFlow,
+  NodeProps,
+  Handle,
+  Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { WorkflowNode, WorkflowEdge } from "@shared/schema";
 import { NodeInspector } from "./NodeInspector";
 import { Button } from "./ui/button";
-import { Plus, Play, Save, ChevronLeft, Webhook, Globe, Code, Bot, Database, Mail } from "lucide-react";
+import { Play, Save, ChevronLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useCreateWorkflow, useUpdateWorkflow, useExecuteWorkflow } from "@/hooks/use-workflows";
+import {
+  useCreateWorkflow,
+  useUpdateWorkflow,
+  useExecuteWorkflow,
+} from "@/hooks/use-workflows";
+import { NODE_TYPES, getNodeMeta } from "../utils/nodeTypes";
 
-// Custom Node Types could be defined here if we need specific visual rendering
-// For now, default nodes styled with CSS are fine for the MVP
+// ─── Custom Node Component ────────────────────────────────────────────────────
 
-const nodeTypesList = [
-  {
-    type: "webhook",
-    label: "Webhook",
-    icon: Webhook,
-    // Amber-orange — matches your #c7700c execution ID accent
-    color: "bg-[#c7700c] text-[#c7700c] border border-[#c7700c]",
-    iconColor: "text-[#c7700c]",
-    badge: "bg-[#c7700c]/10 text-[#c7700c] border-[#c7700c]/20",
-  },
-  {
-    type: "http-request",
-    label: "HTTP Request",
-    icon: Globe,
-    // Blue — matches your duration font-mono text-blue-600
-    color: "bg-blue-500 text-blue-600 border border-blue-200",
-    iconColor: "text-blue-600",
-    badge: "bg-blue-500 text-blue-600 border-blue-200",
-  },
-  {
-    type: "code",
-    label: "Code",
-    icon: Code,
-    // Green — matches your workflowId Badge text-green-600
-    color: "bg-green-500 text-green-600 border border-green-200",
-    iconColor: "text-green-600",
-    badge: "bg-green-500 text-green-600 border-green-200",
-  },
-  {
-    type: "ai-chat",
-    label: "AI Chat",
-    icon: Bot,
-    // Hot pink/rose — matches your #EF486F workflow name accent
-    color: "bg-[#EF486F] text-[#EF486F] border border-[#EF486F]",
-    iconColor: "text-[#EF486F]",
-    badge: "bg-[#EF486F] text-[#EF486F] border-[#EF486F]",
-  },
-  {
-    type: "database",
-    label: "Database",
-    icon: Database,
-    // Muted/secondary — matches your Pending badge and muted-foreground UI
-    color: "bg-purple-500 text-purple-500 border border-purple-200",
-    iconColor: "text-purple-500",
-    badge: "bg-purple-500 text-purple-500 border-purple-200",
-  },
-  {
-    type: "email",
-    label: "Email",
-    icon: Mail,
-    // Red/destructive — matches your Failed badge variant="destructive"
-    color: "bg-red-500 text-red-500 border border-red-200",
-    iconColor: "text-red-500",
-    badge: "bg-red-500 text-red-500 border-red-200",
-  },
-];
+function WorkflowNodeComponent({ data, selected }: NodeProps) {
+  const label = (data.label as string) || "Node";
+  const meta = getNodeMeta(label);
+  const Icon = meta.icon;
+
+  return (
+    <div
+      className={`
+        relative flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2
+        bg-white shadow-sm min-w-[160px] cursor-pointer select-none
+        transition-all duration-150
+        ${meta.borderColor}
+        ${selected ? "shadow-md ring-2 ring-offset-1 ring-current" : "hover:shadow-md"}
+      `}
+    >
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="!w-2.5 !h-2.5 !border-2 !border-white !bg-gray-400"
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="!w-2.5 !h-2.5 !border-2 !border-white !bg-gray-400"
+      />
+
+      {/* Icon badge */}
+      <div
+        className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 ${meta.bgColor}`}
+      >
+        <Icon className={`w-4 h-4 ${meta.iconColor}`} />
+      </div>
+
+      {/* Label + type pill */}
+      <div className="flex flex-col min-w-0">
+        <span className="text-[13px] font-semibold text-gray-800 truncate leading-tight">
+          {label}
+        </span>
+        <span className="flex items-center gap-1 mt-0.5">
+          <span className={`w-1.5 h-1.5 rounded-full ${meta.dotColor}`} />
+          <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">
+            {meta.type}
+          </span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// IMPORTANT: defined outside component to avoid re-registration on every render
+const nodeTypes = {
+  workflowNode: WorkflowNodeComponent,
+};
+
+// ─── Sidebar drag item ────────────────────────────────────────────────────────
+
+function SidebarNodeItem({ node }: { node: (typeof NODE_TYPES)[number] }) {
+  const Icon = node.icon;
+  return (
+    <div
+      className={`
+        flex  items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 bg-white
+        cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md
+        transition-all duration-150 ${node.borderColor}
+      `}
+      draggable
+      onDragStart={(e) =>
+        e.dataTransfer.setData("application/reactflow", node.label)
+      }
+    >
+      <div
+        className={`flex items-center justify-center w-7 h-7 rounded-lg shrink-0 ${node.bgColor}`}
+      >
+        <Icon className={`w-3.5 h-3.5 ${node.iconColor}`} />
+      </div>
+      <span className="text-[13px] font-semibold text-gray-700">{node.label}</span>
+    </div>
+  );
+}
+
+// ─── Props ────────────────────────────────────────────────────────────────────
 
 interface CanvasProps {
   initialNodes?: WorkflowNode[];
@@ -91,66 +123,75 @@ interface CanvasProps {
   onSave?: () => void;
 }
 
-function CanvasContent({ initialNodes = [], initialEdges = [], workflowId, workflowName = "Untitled Workflow" }: CanvasProps) {
+// ─── Canvas Content ───────────────────────────────────────────────────────────
+
+function CanvasContent({
+  initialNodes = [],
+  initialEdges = [],
+  workflowId,
+  workflowName = "Untitled Workflow",
+}: CanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(
-    initialNodes.map(n => ({ 
-      ...n, 
-      data: { ...n.data, label: n.data.label || n.type } 
+    initialNodes.map((n) => ({
+      ...n,
+      type: "workflowNode",
+      data: { ...n.data, label: n.data.label || n.type },
     }))
   );
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<WorkflowNode | null>(null);
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
-  
+
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
   const { toast } = useToast();
-
   const createMutation = useCreateWorkflow();
   const updateMutation = useUpdateWorkflow();
   const executeMutation = useExecuteWorkflow();
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges],
+    [setEdges]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
+    event.dataTransfer.dropEffect = "move";
   }, []);
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
-
-      const type = event.dataTransfer.getData('application/reactflow');
-      if (typeof type === 'undefined' || !type) return;
+      const label = event.dataTransfer.getData("application/reactflow");
+      if (!label) return;
 
       const position = screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
       });
-      
+
+      // Derive the canonical type from the label for consistency
+      const meta = getNodeMeta(label);
+
       const newNode: Node = {
-        id: `${type}-${Date.now()}`,
-        type: 'default', // Using default for MVP, but styled
+        id: `${meta.type}-${Date.now()}`,
+        type: "workflowNode",
         position,
-        data: { label: type },
-        className: 'min-w-[150px] font-medium'
+        data: { label },
       };
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [screenToFlowPosition, setNodes],
+    [screenToFlowPosition, setNodes]
   );
 
   const onNodeClick = (_: React.MouseEvent, node: Node) => {
+    // Pass node.data.label as `type` so NodeInspector field-matching works
     setSelectedNode({
-        id: node.id,
-        type: node.data.label as string || 'default', // Using label as type for simplification in MVP
-        position: node.position,
-        data: node.data
+      id: node.id,
+      type: getNodeMeta(node.data.label as string).type,
+      position: node.position,
+      data: node.data,
     });
     setIsInspectorOpen(true);
   };
@@ -159,12 +200,8 @@ function CanvasContent({ initialNodes = [], initialEdges = [], workflowId, workf
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id === id) {
-          // If label changed in data, update the display label too
           const label = newData.label || node.data.label;
-          return { 
-            ...node, 
-            data: { ...node.data, ...newData, label } 
-          };
+          return { ...node, data: { ...node.data, ...newData, label } };
         }
         return node;
       })
@@ -174,24 +211,24 @@ function CanvasContent({ initialNodes = [], initialEdges = [], workflowId, workf
   const handleNodeDelete = (id: string) => {
     setNodes((nds) => nds.filter((n) => n.id !== id));
     setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
+    setIsInspectorOpen(false);
   };
 
   const handleSave = async () => {
-    // Transform React Flow nodes/edges back to schema format
     const workflowData = {
-      nodes: nodes.map(n => ({
+      nodes: nodes.map((n) => ({
         id: n.id,
-        type: n.data.label as string, // simplified type tracking
+        type: getNodeMeta(n.data.label as string).type,
         position: n.position,
-        data: n.data
+        data: n.data,
       })),
-      edges: edges.map(e => ({
+      edges: edges.map((e) => ({
         id: e.id,
         source: e.source,
         target: e.target,
         sourceHandle: e.sourceHandle || undefined,
-        targetHandle: e.targetHandle || undefined
-      }))
+        targetHandle: e.targetHandle || undefined,
+      })),
     };
 
     try {
@@ -199,117 +236,124 @@ function CanvasContent({ initialNodes = [], initialEdges = [], workflowId, workf
         await updateMutation.mutateAsync({ id: workflowId, ...workflowData });
         toast({ title: "Saved", description: "Workflow updated successfully" });
       } else {
-        await createMutation.mutateAsync({ 
-          name: workflowName, 
-          ...workflowData 
-        });
+        await createMutation.mutateAsync({ name: workflowName, ...workflowData });
         toast({ title: "Saved", description: "New workflow created" });
       }
-    } catch (error) {
-      toast({ 
-        title: "Error", 
-        description: "Failed to save workflow", 
-        variant: "destructive" 
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to save workflow",
+        variant: "destructive",
       });
     }
   };
 
   const handleExecute = async () => {
     if (!workflowId) {
-        toast({ title: "Save First", description: "Please save the workflow before executing.", variant: "destructive" });
-        return;
+      toast({
+        title: "Save First",
+        description: "Please save the workflow before executing.",
+        variant: "destructive",
+      });
+      return;
     }
     try {
-        await executeMutation.mutateAsync(workflowId);
-        toast({ title: "Executed", description: "Workflow execution started." });
-    } catch (error) {
-        toast({ title: "Error", description: "Failed to start execution", variant: "destructive" });
+      await executeMutation.mutateAsync(workflowId);
+      toast({ title: "Executed", description: "Workflow execution started." });
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to start execution",
+        variant: "destructive",
+      });
     }
   };
 
   return (
-    <div className="flex h-screen w-full flex-col">
-        {/* Header Toolbar */}
-        <div className="h-16 border-b border-border bg-card px-6 flex items-center justify-between z-10">
-            <div className="flex items-center gap-4">
-               <h2 className="font-semibold text-lg">{workflowName}</h2>
-               <div className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 text-xs font-medium border border-green-200">
-                  Active
-               </div>
-            </div>
-            <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handleSave} disabled={updateMutation.isPending || createMutation.isPending}>
-                    <Save className="w-4 h-4 mr-2" />
-                    {updateMutation.isPending || createMutation.isPending ? "Saving..." : "Save"}
-                </Button>
-                <Button size="sm" onClick={handleExecute} disabled={!workflowId || executeMutation.isPending}>
-                    <Play className="w-4 h-4 mr-2" />
-                    Execute
-                </Button>
-            </div>
+    <div className="flex flex-col h-screen w-full">
+      {/* Header Toolbar */}
+      <div className="flex items-center justify-between px-4 py-2 border-b bg-white shadow-sm z-10">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm">
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <span className="font-extrabold select-none text-[#EF486F] font-mono text-xl uppercase border border-1 p-2 rounded-lg cursor-default">{workflowName}</span>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium border border-green-200 cursor-default select-none">
+            Active
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSave}
+            disabled={updateMutation.isPending || createMutation.isPending}
+          >
+            <Save className="w-4 h-4 mr-1.5" />
+            {updateMutation.isPending || createMutation.isPending ? "Saving..." : "Save"}
+          </Button>
+          <Button size="sm" onClick={handleExecute} disabled={executeMutation.isPending}>
+            <Play className="w-4 h-4 mr-1.5" />
+            Execute
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Node Sidebar */}
+        <div className="w-52 border-r bg-gray-50 flex flex-col gap-1.5 p-3 overflow-y-auto shrink-0">
+          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1 px-1">
+            Nodes
+          </p>
+          {NODE_TYPES.map((node) => (
+            <SidebarNodeItem key={node.type} node={node} />
+          ))}
         </div>
 
-        <div className="flex flex-1 overflow-hidden">
-            {/* Node Sidebar */}
-            <div className="w-48 border-r border-border bg-card p-4 flex flex-col gap-4 overflow-y-auto z-10">
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                    Nodes
-                </div>
-                {nodeTypesList.map((node) => (
-                    <div
-                        key={node.type}
-                        className="flex items-center gap-3 p-3 rounded-lg border border-border bg-background cursor-grab hover:border-primary/50 hover:shadow-sm transition-all active:cursor-grabbing"
-                        onDragStart={(event) => event.dataTransfer.setData('application/reactflow', node.label)}
-                        draggable
-                    >
-                        <div className={`w-8 h-8 rounded-md flex items-center justify-center ${node.color} text-white`}>
-                            <node.icon className="w-4 h-4" />
-                        </div>
-                        <span className="text-sm font-medium">{node.label}</span>
-                    </div>
-                ))}
-            </div>
-
-            {/* Canvas Area */}
-            <div className="flex-1 h-full relative" ref={reactFlowWrapper}>
-                <ReactFlow
-                    nodes={nodes}
-                    edges={edges}
-                    onNodesChange={onNodesChange}
-                    onEdgesChange={onEdgesChange}
-                    onConnect={onConnect}
-                    onInit={setReactFlowInstance => console.log('flow loaded:', setReactFlowInstance)}
-                    onDrop={onDrop}
-                    onDragOver={onDragOver}
-                    onNodeClick={onNodeClick}
-                    fitView
-                    snapToGrid
-                >
-                    <Controls />
-                    <MiniMap />
-                    <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
-                    <Panel position="top-right" className="bg-background/80 p-2 rounded-lg border border-border text-xs text-muted-foreground backdrop-blur-sm">
-                       Drag nodes from left sidebar
-                    </Panel>
-                </ReactFlow>
-            </div>
+        {/* Canvas Area */}
+        <div className="flex-1 relative" ref={reactFlowWrapper}>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+            onNodeClick={onNodeClick}
+            fitView
+            snapToGrid
+          >
+            <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
+            <Controls />
+            <MiniMap />
+            <Panel position="top-center">
+              <p className="text-xs text-gray-400 bg-white/80 backdrop-blur px-3 py-1 rounded-full border shadow-sm">
+                Drag nodes from the left sidebar
+              </p>
+            </Panel>
+          </ReactFlow>
         </div>
+      </div>
 
-        <NodeInspector 
-            node={selectedNode}
-            isOpen={isInspectorOpen}
-            onClose={() => setIsInspectorOpen(false)}
-            onUpdate={handleNodeUpdate}
-            onDelete={handleNodeDelete}
-        />
+      <NodeInspector
+        node={selectedNode}
+        isOpen={isInspectorOpen}
+        onClose={() => setIsInspectorOpen(false)}
+        onUpdate={handleNodeUpdate}
+        onDelete={handleNodeDelete}
+      />
     </div>
   );
 }
 
+// ─── Public export ────────────────────────────────────────────────────────────
+
 export function Canvas(props: CanvasProps) {
-    return (
-        <ReactFlowProvider>
-            <CanvasContent {...props} />
-        </ReactFlowProvider>
-    );
+  return (
+    <ReactFlowProvider>
+      <CanvasContent {...props} />
+    </ReactFlowProvider>
+  );
 }
