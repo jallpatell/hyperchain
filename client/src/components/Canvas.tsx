@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { useNavigate }  from "react-router-dom";
 import {
   ReactFlow,
   MiniMap,
@@ -22,14 +23,25 @@ import "@xyflow/react/dist/style.css";
 import { WorkflowNode, WorkflowEdge } from "@shared/schema";
 import { NodeInspector } from "./NodeInspector";
 import { Button } from "./ui/button";
-import { Play, Save, ChevronLeft } from "lucide-react";
+import { Play, Save, ChevronLeft, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   useCreateWorkflow,
   useUpdateWorkflow,
   useExecuteWorkflow,
 } from "@/hooks/use-workflows";
+import { useExecutionMonitor } from "@/hooks/use-execution-monitor";
 import { NODE_TYPES, getNodeMeta } from "../utils/nodeTypes";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "./ui/dialog";
+import { Textarea } from "./ui/textarea";
+import { Label } from "./ui/label";
+import { navigate } from "wouter/use-browser-location";
 
 // ─── Custom Node Component ────────────────────────────────────────────────────
 
@@ -123,7 +135,6 @@ interface CanvasProps {
   onSave?: () => void;
 }
 
-// ─── Canvas Content ───────────────────────────────────────────────────────────
 
 function CanvasContent({
   initialNodes = [],
@@ -141,6 +152,9 @@ function CanvasContent({
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<WorkflowNode | null>(null);
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
+  const [showTriggerDialog, setShowTriggerDialog] = useState(false);
+  const [triggerData, setTriggerData] = useState("{}");
+  const [currentExecutionId, setCurrentExecutionId] = useState<number | null>(null);
 
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
@@ -148,6 +162,7 @@ function CanvasContent({
   const createMutation = useCreateWorkflow();
   const updateMutation = useUpdateWorkflow();
   const executeMutation = useExecuteWorkflow();
+  const executionState = useExecutionMonitor(currentExecutionId);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -173,7 +188,7 @@ function CanvasContent({
       // Derive the canonical type from the label for consistency
       const meta = getNodeMeta(label);
 
-      const newNode: Node = {
+      const newNode: any = {
         id: `${meta.type}-${Date.now()}`,
         type: "workflowNode",
         position,
@@ -257,25 +272,56 @@ function CanvasContent({
       });
       return;
     }
+    // Show trigger data dialog
+    setShowTriggerDialog(true);
+  };
+
+  const handleExecuteWithTrigger = async () => {
+    if (!workflowId) return;
+
     try {
-      await executeMutation.mutateAsync(workflowId);
-      toast({ title: "Executed", description: "Workflow execution started." });
-    } catch {
+      let parsedTrigger: any = {};
+      try {
+        parsedTrigger = JSON.parse(triggerData);
+      } catch {
+        toast({
+          title: "Invalid JSON",
+          description: "Trigger data must be valid JSON",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const result = await executeMutation.mutateAsync({
+        id: workflowId,
+        triggerData: parsedTrigger,
+      });
+      
+      setCurrentExecutionId(result.executionId);
+      setShowTriggerDialog(false);
+      toast({
+        title: "Execution Started",
+        description: `Execution ${result.executionId} started. Monitor progress below.`,
+      });
+    } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to start execution",
+        description:
+          error instanceof Error ? error.message : "Failed to execute workflow",
         variant: "destructive",
       });
     }
   };
+
+  const redirectHome = () => navigate("/");
 
   return (
     <div className="flex flex-col h-screen w-full">
       {/* Header Toolbar */}
       <div className="flex items-center justify-between px-4 py-2 border-b bg-white shadow-sm z-10">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm">
-            <ChevronLeft className="w-4 h-4" />
+          <Button variant="ghost" onClick={redirectHome} size="sm">
+            <ChevronLeft  className="w-4 h-4" />
           </Button>
           <span className="font-extrabold select-none text-[#EF486F] font-mono text-xl uppercase border border-1 p-2 rounded-lg cursor-default">{workflowName}</span>
           <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium border border-green-200 cursor-default select-none">
@@ -344,6 +390,114 @@ function CanvasContent({
         onUpdate={handleNodeUpdate}
         onDelete={handleNodeDelete}
       />
+
+      {/* Trigger Data Dialog */}
+      <Dialog open={showTriggerDialog} onOpenChange={setShowTriggerDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Execute Workflow</DialogTitle>
+            <DialogDescription>
+              Provide initial trigger data (JSON format) for the workflow execution.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Trigger Data (JSON)</Label>
+              <Textarea
+                placeholder='{"key": "value"}'
+                value={triggerData}
+                onChange={(e) => setTriggerData(e.target.value)}
+                className="font-mono text-xs h-32"
+              />
+              <p className="text-xs text-muted-foreground">
+                This data will be passed to webhook nodes and available to downstream nodes
+              </p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowTriggerDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleExecuteWithTrigger} disabled={executeMutation.isPending}>
+                <Zap className="w-4 h-4 mr-1.5" />
+                {executeMutation.isPending ? "Starting..." : "Execute"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Execution Monitor */}
+      {currentExecutionId && executionState.progress && (
+        <div className="fixed bottom-4 right-4 bg-white border rounded-lg shadow-lg p-4 w-96 max-h-96 overflow-y-auto z-40">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-amber-500" />
+              <span className="text-sm font-semibold">
+                Execution #{currentExecutionId}
+              </span>
+            </div>
+            <span
+              className={`text-xs px-2 py-1 rounded-full font-semibold ${
+                executionState.progress.status === "completed"
+                  ? "bg-green-100 text-green-700"
+                  : executionState.progress.status === "failed"
+                  ? "bg-red-100 text-red-700"
+                  : "bg-blue-100 text-blue-700"
+              }`}
+            >
+              {executionState.progress.status.toUpperCase()}
+            </span>
+          </div>
+
+          {executionState.progress.error && (
+            <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+              {executionState.progress.error}
+            </div>
+          )}
+
+          <div className="space-y-2">
+            {executionState.progress.nodes.map((node) => (
+              <div
+                key={node.nodeId}
+                className="text-xs border rounded p-2 bg-gray-50"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-mono font-semibold truncate">
+                    {node.nodeId}
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                      node.status === "success"
+                        ? "bg-green-100 text-green-700"
+                        : node.status === "error"
+                        ? "bg-red-100 text-red-700"
+                        : node.status === "skipped"
+                        ? "bg-gray-100 text-gray-700"
+                        : node.status === "running"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    {node.status}
+                  </span>
+                </div>
+                {node.error && (
+                  <p className="text-red-600 mt-1 text-xs">{node.error}</p>
+                )}
+                {node.output && (
+                  <pre className="mt-1 text-xs bg-white p-1 rounded border border-gray-200 overflow-auto max-h-20">
+                    {JSON.stringify(node.output, null, 2).slice(0, 200)}
+                    {JSON.stringify(node.output, null, 2).length > 200 && "..."}
+                  </pre>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

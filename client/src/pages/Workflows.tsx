@@ -120,13 +120,13 @@ export default function Workflows() {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </div>
+                    </div>      
                     
-                    <Link href={`/workflow/${workflow.id}`}>
+                    <a href={`/workflow/${workflow.id}`} target="_blank" rel="noopener noreferrer">
                       <h3 className="font-semibold text-lg mb-2 group-hover:text-primary transition-colors cursor-pointer">
                         {workflow.name}
                       </h3>
-                    </Link>
+                    </a>
                     <p className="text-sm text-muted-foreground line-clamp-2">
                       {workflow.description || "No description provided."}
                     </p>
@@ -166,7 +166,7 @@ export default function Workflows() {
                 onChange={(e) => setNewWorkflowName(e.target.value)}
               /> 
             </div>
-          <div className="">
+          <div className="mb-10">
                 <Label htmlFor="description" > Workflow Description</Label>
               <Input 
                 id="description" 

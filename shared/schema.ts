@@ -50,6 +50,7 @@ export const executionsRelations = relations(executions, ({ one }) => ({
 // === BASE SCHEMAS ===
 export const insertWorkflowSchema = createInsertSchema(workflows).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertExecutionSchema = createInsertSchema(executions).omit({ id: true, startedAt: true, finishedAt: true });
+export const updateExecutionSchema = createInsertSchema(executions).omit({ id: true, workflowId: true, startedAt: true }).partial();
 export const insertCredentialSchema = createInsertSchema(credentials).omit({ id: true, createdAt: true });
 
 // === EXPLICIT API CONTRACT TYPES ===
@@ -83,6 +84,23 @@ export interface WorkflowEdge {
   target: string;
   sourceHandle?: string;
   targetHandle?: string;
+}
+
+export interface NodeProgress {
+  nodeId: string;
+  status: "pending" | "running" | "success" | "error" | "skipped";
+  output?: any;
+  error?: string;
+  startedAt?: string;
+  finishedAt?: string;
+}
+
+export interface ExecutionProgress {
+  executionId: number;
+  workflowId: number;
+  status: "pending" | "running" | "completed" | "failed";
+  nodes: NodeProgress[];
+  error?: string;
 }
 
 export * from "./models/chat";

@@ -101,10 +101,12 @@ export function useDeleteWorkflow() {
 
 export function useExecuteWorkflow() {
   return useMutation({
-    mutationFn: async (id: number) => {
+    mutationFn: async ({ id, triggerData }: { id: number; triggerData?: any }) => {
       const url = buildUrl(api.workflows.execute.path, { id });
       const res = await fetch(url, {
         method: api.workflows.execute.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ triggerData }),
         credentials: "include"
       });
       if (!res.ok) throw new Error("Failed to execute workflow");

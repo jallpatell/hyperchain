@@ -190,26 +190,142 @@ export function NodeInspector({
               <div className="space-y-2">
                 <Label>Model</Label>
                 <Select
-                  value={formData.model || "gpt-4"}
+                  value={formData.model || "claude-haiku-4-5-20251001"}
                   onValueChange={(val) => handleChange("model", val)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select Model" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="claude-haiku-4-5-20251001">Claude Haiku</SelectItem>
+                    <SelectItem value="claude-opus-4-1">Claude Opus</SelectItem>
                     <SelectItem value="gpt-4">GPT-4</SelectItem>
                     <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
-                    <SelectItem value="claude-3-opus">Claude 3 Opus</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>System Prompt</Label>
+                <Label>User Prompt <span className="text-red-500">*</span></Label>
+                <Textarea
+                  placeholder="What would you like to ask the AI? (e.g., 'Summarize: {{prev-node.body}}')"
+                  value={formData.prompt || ""}
+                  onChange={(e) => handleChange("prompt", e.target.value)}
+                  className="h-24"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {"Use {{nodeId.field}} to reference outputs from previous nodes"}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>System Prompt (Optional)</Label>
                 <Textarea
                   placeholder="You are a helpful assistant..."
                   value={formData.systemPrompt || ""}
                   onChange={(e) => handleChange("systemPrompt", e.target.value)}
+                  className="h-20"
                 />
+              </div>
+            </div>
+          )}
+
+          {node.type === "database" && (
+            <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-border">
+              <div className="space-y-2">
+                <Label>Connection String <span className="text-red-500">*</span></Label>
+                <Input
+                  placeholder="postgresql://user:password@localhost:5432/database"
+                  value={formData.connectionString || ""}
+                  onChange={(e) => handleChange("connectionString", e.target.value)}
+                  type="password"
+                />
+                <p className="text-xs text-muted-foreground">
+                  PostgreSQL connection string for the database you want to query
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>SQL Query <span className="text-red-500">*</span></Label>
+                <Textarea
+                  placeholder="SELECT * FROM users WHERE id = $1;"
+                  value={formData.query || ""}
+                  onChange={(e) => handleChange("query", e.target.value)}
+                  className="font-mono text-xs h-32"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {"SQL query to execute. Use {{nodeId.field}} for dynamic values."}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {node.type === "email" && (
+            <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-border">
+              <div className="space-y-2">
+                <Label>To Email <span className="text-red-500">*</span></Label>
+                <Input
+                  placeholder="recipient@example.com"
+                  value={formData.to || ""}
+                  onChange={(e) => handleChange("to", e.target.value)}
+                  type="email"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Subject <span className="text-red-500">*</span></Label>
+                <Input
+                  placeholder="Email subject line"
+                  value={formData.subject || ""}
+                  onChange={(e) => handleChange("subject", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Body <span className="text-red-500">*</span></Label>
+                <Textarea
+                  placeholder="Email body content"
+                  value={formData.body || ""}
+                  onChange={(e) => handleChange("body", e.target.value)}
+                  className="h-24"
+                />
+              </div>
+              <div className="border-t pt-4">
+                <p className="text-sm font-semibold mb-3">SMTP Configuration (Optional)</p>
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label>SMTP Host</Label>
+                    <Input
+                      placeholder="smtp.gmail.com"
+                      value={formData.host || ""}
+                      onChange={(e) => handleChange("host", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>SMTP Port</Label>
+                    <Input
+                      placeholder="587"
+                      value={formData.port || ""}
+                      onChange={(e) => handleChange("port", e.target.value)}
+                      type="number"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Username</Label>
+                    <Input
+                      placeholder="your-email@gmail.com"
+                      value={formData.user || ""}
+                      onChange={(e) => handleChange("user", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Password</Label>
+                    <Input
+                      placeholder="app-password"
+                      value={formData.pass || ""}
+                      onChange={(e) => handleChange("pass", e.target.value)}
+                      type="password"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Uses SMTP_* environment variables if not specified
+                  </p>
+                </div>
               </div>
             </div>
           )}
