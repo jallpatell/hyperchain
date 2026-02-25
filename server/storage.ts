@@ -34,7 +34,9 @@ export interface IStorage {
 
   // Credentials
   getCredentials(): Promise<Credential[]>;
+  getCredential(id: number): Promise<Credential | undefined>;
   createCredential(credential: InsertCredential): Promise<Credential>;
+  updateCredential(id: number, updates: Partial<InsertCredential>): Promise<Credential>;
   deleteCredential(id: number): Promise<void>;
 }
 
@@ -111,9 +113,22 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(credentials).orderBy(desc(credentials.createdAt));
   }
 
+  async getCredential(id: number): Promise<Credential | undefined> {
+    const [credential] = await db.select().from(credentials).where(eq(credentials.id, id));
+    return credential;
+  }
+
   async createCredential(insertCredential: InsertCredential): Promise<Credential> {
     const [credential] = await db.insert(credentials).values(insertCredential).returning();
     return credential;
+  }
+
+  async updateCredential(id: number, updates: Partial<InsertCredential>): Promise<Credential> {
+    const [updated] = await db.update(credentials)
+      .set(updates)
+      .where(eq(credentials.id, id))
+      .returning();
+    return updated;
   }
 
   async deleteCredential(id: number): Promise<void> {
