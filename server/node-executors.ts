@@ -233,10 +233,10 @@ export async function executeAiChat(
   }
 
   const model = resolvedData.model || "claude-haiku-4-5-20251001";
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
 
   if (!apiKey) {
-    throw new Error(`[ai-chat] Missing OPENAI_API_KEY environment variable`);
+    throw new Error(`[ai-chat] Missing ANTHROPIC_API_KEY environment variable`);
   }
 
   const payload = {
