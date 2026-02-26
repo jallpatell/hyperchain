@@ -177,15 +177,50 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
-  // --- OAuth Routes ---
-  app.get("/api/oauth/gmail/auth-url", async (req, res) => {
+  // helper that prefers a 'gmail-oauth-config' credential but falls back to env vars
+  async function loadGmailOAuthConfig() {
+    // look for a dedicated config credential
+    const creds = await storage.getCredentials();
+    const cfgCred = creds.find((c) => c.type === "gmail-oauth-config");
+    if (cfgCred && cfgCred.data) {
+      const { decrypt } = await import("./crypto");
+      let parsed: any;
+      try {
+        // data is encrypted string
+        parsed = JSON.parse(decrypt(cfgCred.data as string));
+      } catch (err) {
+        console.error("Failed to parse gmail-oauth-config data", err);
+        parsed = {};
+      }
+      console.log("[oauth] using DB config, clientId starts with", parsed.clientId?.slice(0,10));
+      return {
+        clientId: parsed.clientId,
+        clientSecret: parsed.clientSecret,
+        redirectUri:
+          parsed.redirectUri ||
+          process.env.GMAIL_REDIRECT_URI ||
+          "http://localhost:5000/api/oauth/gmail/callback",
+      };
+    }
+
+    // fallback to environment variables
     const clientId = process.env.GMAIL_CLIENT_ID;
     const clientSecret = process.env.GMAIL_CLIENT_SECRET;
     const redirectUri = process.env.GMAIL_REDIRECT_URI || "http://localhost:5000/api/oauth/gmail/callback";
+    if (clientId && clientSecret) {
+      console.log("[oauth] using env config, clientId starts with", clientId?.slice(0,10));
+      return { clientId, clientSecret, redirectUri };
+    }
 
-    if (!clientId || !clientSecret) {
+    return null;
+  }
+
+  // --- OAuth Routes ---
+  app.get("/api/oauth/gmail/auth-url", async (req, res) => {
+    const cfg = await loadGmailOAuthConfig();
+    if (!cfg) {
       return res.status(400).json({
-        message: "Gmail OAuth is not configured. Set GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET.",
+        message: "Gmail OAuth is not configured. Add a Gmail OAuth App credential or set GMAIL_CLIENT_ID/GMAIL_CLIENT_SECRET env vars.",
       });
     }
 
@@ -194,10 +229,7 @@ export async function registerRoutes(
     const state = generateToken();
 
     // Store state in memory (in production, use Redis or database)
-    const authUrl = getGmailAuthUrl(
-      { clientId, clientSecret, redirectUri },
-      state
-    );
+    const authUrl = getGmailAuthUrl(cfg, state);
 
     res.json({ authUrl, state });
   });
@@ -209,11 +241,8 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Missing authorization code" });
       }
 
-      const clientId = process.env.GMAIL_CLIENT_ID;
-      const clientSecret = process.env.GMAIL_CLIENT_SECRET;
-      const redirectUri = process.env.GMAIL_REDIRECT_URI || "http://localhost:5000/api/oauth/gmail/callback";
-
-      if (!clientId || !clientSecret) {
+      const cfg = await loadGmailOAuthConfig();
+      if (!cfg) {
         return res.status(400).json({
           message: "Gmail OAuth is not configured",
         });
@@ -222,9 +251,9 @@ export async function registerRoutes(
       const { exchangeGmailCode } = await import("./oauth");
       const { encrypt } = await import("./crypto");
       const tokens = await exchangeGmailCode(code, {
-        clientId,
-        clientSecret,
-        redirectUri,
+        clientId: cfg.clientId,
+        clientSecret: cfg.clientSecret,
+        redirectUri: cfg.redirectUri,
       });
 
       // Get user email from Gmail
@@ -260,6 +289,96 @@ export async function registerRoutes(
       res.status(500).json({
         message: err instanceof Error ? err.message : "OAuth redirect failed",
       });
+    }
+  });
+
+  // Handle OAuth callback from Google (GET request with code in query params)
+  app.get("/api/oauth/gmail/callback", async (req, res) => {
+    try {
+      const { code, error, state } = req.query;
+
+      if (error) {
+        return res.status(400).send(`
+          <html>
+            <body>
+              <h1>Authentication Failed</h1>
+              <p>Error: ${error}</p>
+              <p>You can close this window and try again.</p>
+            </body>
+          </html>
+        `);
+      }
+
+      if (!code) {
+        return res.status(400).send(`
+          <html>
+            <body>
+              <h1>Authentication Failed</h1>
+              <p>No authorization code received.</p>
+            </body>
+          </html>
+        `);
+      }
+
+      const cfg = await loadGmailOAuthConfig();
+      if (!cfg) {
+        return res.status(400).send(`
+          <html>
+            <body>
+              <h1>Configuration Error</h1>
+              <p>Gmail OAuth is not configured on the server.</p>
+            </body>
+          </html>
+        `);
+      }
+
+      const { exchangeGmailCode } = await import("./oauth");
+      const { encrypt } = await import("./crypto");
+      const tokens = await exchangeGmailCode(String(code), {
+        clientId: cfg.clientId,
+        clientSecret: cfg.clientSecret,
+        redirectUri: cfg.redirectUri,
+      });
+
+      // Get user email from Gmail
+      const emailResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+        headers: { Authorization: `Bearer ${tokens.accessToken}` },
+      });
+
+      if (!emailResponse.ok) {
+        throw new Error("Failed to get user email");
+      }
+
+      const userInfo = (await emailResponse.json()) as { email: string };
+
+      // Store credential
+      const credential = await storage.createCredential({
+        name: `Gmail - ${userInfo.email}`,
+        type: "gmail-oauth",
+        data: encrypt({
+          email: userInfo.email,
+          tokens,
+          clientId,
+          clientSecret,
+        }),
+      });
+
+      // Redirect back to credentials page with success message
+      return res.redirect(
+        `/credentials?success=true&credentialId=${credential.id}&email=${encodeURIComponent(userInfo.email)}`
+      );
+    } catch (err) {
+      console.error("[oauth] Gmail callback error:", err);
+      const errorMsg = err instanceof Error ? err.message : "Unknown error";
+      return res.status(500).send(`
+        <html>
+          <body>
+            <h1>Authentication Failed</h1>
+            <p>Error: ${errorMsg}</p>
+            <p><a href="/credentials">Return to Credentials</a></p>
+          </body>
+        </html>
+      `);
     }
   });
 

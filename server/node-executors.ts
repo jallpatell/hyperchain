@@ -154,6 +154,17 @@ export async function executeCode(
         console.warn(`[${node.id}]`, ...args),
     },
 
+    // Global functions available in browser
+    fetch: globalThis.fetch as any,
+    JSON: JSON,
+    Math: Math,
+    Date: Date,
+    Array: Array,
+    Object: Object,
+    String: String,
+    Number: Number,
+    Boolean: Boolean,
+
     // Result placeholder
     $result: undefined as any,
   };

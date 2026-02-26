@@ -16,10 +16,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useGmailOAuth } from "@/hooks/use-gmail-oauth";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { WorkflowNode } from "@shared/schema";
 import { useState, useEffect } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Mail, ExternalLink } from "lucide-react";
 import { getNodeMeta } from "../utils/nodeTypes";
+import { useCredentials } from "@/hooks/use-credentials";
 
 interface NodeInspectorProps {
   node: WorkflowNode | null;
@@ -36,8 +39,11 @@ export function NodeInspector({
   onUpdate,
   onDelete,
 }: NodeInspectorProps) {
+  const { data: credentials } = useCredentials();
+  const gmailOAuthMutation = useGmailOAuth();
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [showGmailNotice, setShowGmailNotice] = useState(false);
 
   useEffect(() => {
     if (node) {
@@ -260,6 +266,99 @@ export function NodeInspector({
           {node.type === "email" && (
             <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-border">
               <div className="space-y-2">
+                <Label>Send Via</Label>
+                <Select
+                  value={formData.provider || "smtp"}
+                  onValueChange={(val) => handleChange("provider", val)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="gmail-oauth">Gmail OAuth</SelectItem>
+                    <SelectItem value="smtp">SMTP</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+{formData.provider === "gmail-oauth" && (
+  <div className="space-y-2">
+    <Label>Gmail Credential</Label>
+
+    {showGmailNotice && (
+      <Alert className="mt-2 bg-blue-50 border-blue-200">
+        <ExternalLink className="h-4 w-4 text-blue-600" />
+        <AlertDescription className="text-blue-800">
+          You're being redirected to Google for authentication. Please
+          authorize the app to send emails on your behalf. You'll be
+          returned here once complete.
+        </AlertDescription>
+      </Alert>
+    )}
+
+    <Select
+      value={formData.credentialId ? String(formData.credentialId) : ""}
+      onValueChange={(val) =>
+        handleChange("credentialId", parseInt(val))
+      }
+    >
+      <SelectTrigger>
+        <SelectValue placeholder="Select Gmail credential" />
+      </SelectTrigger>
+
+      <SelectContent>
+        {credentials
+          ?.filter((c) => c.type === "gmail-oauth")
+          .map((c) => (
+            <SelectItem key={c.id} value={String(c.id)}>
+              {c.name}
+            </SelectItem>
+          ))}
+
+        {credentials &&
+          credentials.filter((c) => c.type === "gmail-oauth").length === 0 && (
+            <SelectItem disabled value="__none">
+              No Gmail credentials found
+            </SelectItem>
+          )}
+      </SelectContent>
+    </Select>
+
+    {/* Show connect section if no Gmail credentials exist */}
+    {credentials &&
+      credentials.filter((c) => c.type === "gmail-oauth").length === 0 && (
+        <div className="mt-2 space-y-2">
+          <Alert>
+            <Mail className="h-4 w-4" />
+            <AlertDescription>
+              Connect a Gmail account to send emails via OAuth.
+            </AlertDescription>
+          </Alert>
+
+          <Button
+            onClick={() => {
+              setShowGmailNotice(true);
+              gmailOAuthMutation.mutate();
+            }}
+            disabled={gmailOAuthMutation.isPending}
+            className="w-full gap-2"
+          >
+            {gmailOAuthMutation.isPending
+              ? "Connecting..."
+              : "Connect Gmail"}
+          </Button>
+        </div>
+      )}
+
+    <p className="text-xs text-muted-foreground">
+      Select a Gmail account connected in Credentials. Go to the
+      Credentials page to add more.
+    </p>
+  </div>
+)}
+
+
+              <div className="space-y-2">
                 <Label>To Email <span className="text-red-500">*</span></Label>
                 <Input
                   placeholder="recipient@example.com"
@@ -284,49 +383,55 @@ export function NodeInspector({
                   onChange={(e) => handleChange("body", e.target.value)}
                   className="h-24"
                 />
+                <p className="text-xs text-muted-foreground">
+                  {"Use {{nodeId.field}} to reference outputs from previous nodes"}
+                </p>
               </div>
-              <div className="border-t pt-4">
-                <p className="text-sm font-semibold mb-3">SMTP Configuration (Optional)</p>
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <Label>SMTP Host</Label>
-                    <Input
-                      placeholder="smtp.gmail.com"
-                      value={formData.host || ""}
-                      onChange={(e) => handleChange("host", e.target.value)}
-                    />
+
+              {formData.provider === "smtp" && (
+                <div className="border-t pt-4">
+                  <p className="text-sm font-semibold mb-3">SMTP Configuration</p>
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label>SMTP Host</Label>
+                      <Input
+                        placeholder="smtp.gmail.com"
+                        value={formData.host || ""}
+                        onChange={(e) => handleChange("host", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>SMTP Port</Label>
+                      <Input
+                        placeholder="587"
+                        value={formData.port || ""}
+                        onChange={(e) => handleChange("port", e.target.value)}
+                        type="number"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Username</Label>
+                      <Input
+                        placeholder="your-email@gmail.com"
+                        value={formData.user || ""}
+                        onChange={(e) => handleChange("user", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Password</Label>
+                      <Input
+                        placeholder="app-password"
+                        value={formData.pass || ""}
+                        onChange={(e) => handleChange("pass", e.target.value)}
+                        type="password"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Uses SMTP_* environment variables if not specified
+                    </p>
                   </div>
-                  <div className="space-y-2">
-                    <Label>SMTP Port</Label>
-                    <Input
-                      placeholder="587"
-                      value={formData.port || ""}
-                      onChange={(e) => handleChange("port", e.target.value)}
-                      type="number"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Username</Label>
-                    <Input
-                      placeholder="your-email@gmail.com"
-                      value={formData.user || ""}
-                      onChange={(e) => handleChange("user", e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Password</Label>
-                    <Input
-                      placeholder="app-password"
-                      value={formData.pass || ""}
-                      onChange={(e) => handleChange("pass", e.target.value)}
-                      type="password"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Uses SMTP_* environment variables if not specified
-                  </p>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
