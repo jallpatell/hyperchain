@@ -186,18 +186,19 @@ export async function registerRoutes(
       const { decrypt } = await import("./crypto");
       let parsed: any;
       try {
-        // data is encrypted string
-        parsed = JSON.parse(decrypt(cfgCred.data as string));
+        // data is encrypted string, decrypt with asJSON=false to get raw string, then parse
+        const decryptedStr = decrypt(cfgCred.data as string, false);
+        parsed = JSON.parse(decryptedStr);
       } catch (err) {
         console.error("Failed to parse gmail-oauth-config data", err);
         parsed = {};
       }
       console.log("[oauth] using DB config, clientId starts with", parsed.clientId?.slice(0,10));
+      console.log("[oauth] using DB config, clientId starts with", parsed.clientId?.slice(0,10));
       return {
         clientId: parsed.clientId,
         clientSecret: parsed.clientSecret,
         redirectUri:
-          parsed.redirectUri ||
           process.env.GMAIL_REDIRECT_URI ||
           "http://localhost:5000/api/oauth/gmail/callback",
       };
@@ -274,8 +275,8 @@ export async function registerRoutes(
         data: encrypt({
           email: userInfo.email,
           tokens,
-          clientId,
-          clientSecret,
+          clientId: cfg.clientId,
+          clientSecret: cfg.clientSecret,
         }),
       });
 
@@ -358,8 +359,8 @@ export async function registerRoutes(
         data: encrypt({
           email: userInfo.email,
           tokens,
-          clientId,
-          clientSecret,
+          clientId: cfg.clientId,
+          clientSecret: cfg.clientSecret,
         }),
       });
 

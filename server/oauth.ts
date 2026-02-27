@@ -22,7 +22,7 @@ export function getGmailAuthUrl(config: GmailOAuthConfig, state: string): string
     client_id: config.clientId,
     redirect_uri: config.redirectUri,
     response_type: "code",
-    scope: "https://www.googleapis.com/auth/gmail.send",
+    scope: "https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/userinfo.email",
     state,
     access_type: "offline",
     prompt: "consent",
