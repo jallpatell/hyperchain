@@ -21,7 +21,8 @@ export function resolveTemplateVariables(
 ): any {
   if (typeof value === "string") {
     return value.replace(/\{\{([^}]+)\}\}/g, (match, path: string) => {
-      const [nodeId, ...fieldParts] = path.split(".");
+      const trimmed = String(path || "").trim();
+      const [nodeId, ...fieldParts] = trimmed.split(".");
       let current = context[nodeId];
 
       for (const part of fieldParts) {
@@ -48,6 +49,50 @@ export function resolveTemplateVariables(
     return result;
   }
   return value;
+}
+
+/**
+ * Fallback helper: if a template references a non-existent node but there is a single parent ($prev),
+ * rewrite the template to use $prev before throwing an unresolved error.
+ */
+export function fallbackToPrevIfSingleParent(
+  unresolved: string[],
+  context: NodeExecutionContext
+): string[] {
+  const hasPrev = "$prev" in context && context["$prev"] != null;
+  if (!hasPrev) return unresolved;
+
+  return unresolved.map((tpl) => {
+    const inner = tpl.replace(/^\{\{|\}\}$/g, "").trim();
+    const [nodeId, ...rest] = inner.split(".");
+    // Only rewrite if the referenced node does NOT exist in context
+    if (nodeId && !(nodeId in context) && rest.length > 0) {
+      return `{{$prev.${rest.join(".")}}}`;
+    }
+    return tpl;
+  });
+}
+
+function findUnresolvedTemplates(value: any): string[] {
+  const unresolved: string[] = [];
+
+  const visit = (v: any) => {
+    if (typeof v === "string") {
+      const matches = v.match(/\{\{[^}]+\}\}/g);
+      if (matches) unresolved.push(...matches);
+      return;
+    }
+    if (Array.isArray(v)) {
+      v.forEach(visit);
+      return;
+    }
+    if (v && typeof v === "object") {
+      Object.values(v).forEach(visit);
+    }
+  };
+
+  visit(value);
+  return unresolved;
 }
 
 /**
@@ -310,10 +355,22 @@ export async function executeDatabase(
   try {
     await client.connect();
     const result = await client.query(query);
+    const rows = result.rows;
+    const first = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+    const emails = Array.isArray(rows)
+      ? rows
+          .map((r: any) => (r && typeof r === "object" ? r.email : undefined))
+          .filter((v: any) => typeof v === "string" && v.trim().length > 0)
+          .join(",")
+      : "";
+    const text = JSON.stringify(rows, null, 2);
     return {
-      rows: result.rows,
+      rows,
       rowCount: result.rowCount,
       fields: result.fields.map((f: any) => f.name),
+      first,
+      emails,
+      text,
     };
   } finally {
     await client.end();
@@ -332,6 +389,21 @@ export async function executeEmail(
   const subject = resolvedData.subject;
   const body = resolvedData.body;
   const credentialId = resolvedData.credentialId; // Reference to stored credential
+
+  const unresolved = findUnresolvedTemplates({ to, subject, body });
+  if (unresolved.length > 0) {
+    const rewritten = fallbackToPrevIfSingleParent(unresolved, context);
+    const stillUnresolved = findUnresolvedTemplates({ to, subject, body });
+    if (stillUnresolved.length > 0) {
+      const availableKeys = Object.keys(context || {}).sort().join(",");
+      throw new Error(
+        `[email] Unresolved template(s): ${stillUnresolved.join(", ")} (available context keys: ${availableKeys})`
+      );
+    }
+    // Re-resolve with rewritten templates
+    const again = resolveTemplateVariables({ to, subject, body }, context);
+    return { to: again.to, subject: again.subject, body: again.body, credentialId };
+  }
 
   if (!to) {
     throw new Error(`[email] Missing required field: to`);

@@ -20,9 +20,10 @@ import { useGmailOAuth } from "@/hooks/use-gmail-oauth";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { WorkflowNode } from "@shared/schema";
 import { useState, useEffect } from "react";
-import { Trash2, Mail, ExternalLink } from "lucide-react";
+import { Trash2, Mail, ExternalLink, Copy } from "lucide-react";
 import { getNodeMeta } from "../utils/nodeTypes";
 import { useCredentials } from "@/hooks/use-credentials";
+import { useToast } from "@/hooks/use-toast";
 
 interface NodeInspectorProps {
   node: WorkflowNode | null;
@@ -57,6 +58,18 @@ export function NodeInspector({
     if (node) {
       onUpdate(node.id, newData);
     }
+  };
+
+  const insertTemplate = (field: "to" | "subject" | "body", template: string) => {
+    const current = formData[field] || "";
+    const updated = current ? `${current}\n${template}` : template;
+    handleChange(field, updated);
+  };
+
+  const { toast } = useToast();
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "Copied", description: "Template copied to clipboard" });
   };
 
   if (!node) return null;
@@ -219,7 +232,7 @@ export function NodeInspector({
                   className="h-24"
                 />
                 <p className="text-xs text-muted-foreground">
-                  {"Use {{nodeId.field}} to reference outputs from previous nodes"}
+                  {"Use {{$prev.<field>}} for the previous connected node (e.g., {{$prev.summary}}), or {{<node-id>.<field>}} (e.g., {{code.summary}})"}
                 </p>
               </div>
               <div className="space-y-2">
@@ -360,12 +373,23 @@ export function NodeInspector({
 
               <div className="space-y-2">
                 <Label>To Email <span className="text-red-500">*</span></Label>
-                <Input
-                  placeholder="recipient@example.com"
-                  value={formData.to || ""}
-                  onChange={(e) => handleChange("to", e.target.value)}
-                  type="email"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="recipient@example.com"
+                    value={formData.to || ""}
+                    onChange={(e) => handleChange("to", e.target.value)}
+                    type="email"
+                    className="flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => insertTemplate("to", "{{$prev.emails}}")}
+                    title="Insert {{$prev.emails}}"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Subject <span className="text-red-500">*</span></Label>
@@ -377,14 +401,24 @@ export function NodeInspector({
               </div>
               <div className="space-y-2">
                 <Label>Body <span className="text-red-500">*</span></Label>
-                <Textarea
-                  placeholder="Email body content"
-                  value={formData.body || ""}
-                  onChange={(e) => handleChange("body", e.target.value)}
-                  className="h-24"
-                />
+                <div className="flex gap-2">
+                  <Textarea
+                    placeholder="Email body content"
+                    value={formData.body || ""}
+                    onChange={(e) => handleChange("body", e.target.value)}
+                    className="flex-1 h-24"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => insertTemplate("body", "{{$prev.text}}")}
+                    title="Insert {{$prev.text}}"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  {"Use {{nodeId.field}} to reference outputs from previous nodes"}
+                  {"Use {{$prev.<field>}} for the previous connected node (e.g., {{$prev.summary}}), or {{<node-id>.<field>}} (e.g., {{code.summary}})"}
                 </p>
               </div>
 
