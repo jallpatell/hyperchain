@@ -229,8 +229,8 @@ function CanvasContent({
     setIsInspectorOpen(false);
   };
 
-  const handleSave = async () => {
-    const workflowData = {
+  const buildWorkflowData = () => {
+    return {
       nodes: nodes.map((n) => ({
         id: n.id,
         type: getNodeMeta(n.data.label as string).type,
@@ -245,6 +245,10 @@ function CanvasContent({
         targetHandle: e.targetHandle || undefined,
       })),
     };
+  };
+
+  const handleSave = async () => {
+    const workflowData = buildWorkflowData();
 
     try {
       if (workflowId) {
@@ -280,6 +284,10 @@ function CanvasContent({
     if (!workflowId) return;
 
     try {
+      const workflowData = buildWorkflowData();
+
+      await updateMutation.mutateAsync({ id: workflowId, ...workflowData });
+
       let parsedTrigger: any = {};
       try {
         parsedTrigger = JSON.parse(triggerData);

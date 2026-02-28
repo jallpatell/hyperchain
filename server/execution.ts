@@ -233,6 +233,24 @@ export async function executeWorkflow(
       broadcastProgress("running");
 
       try {
+        const parentIds = getParents(edges, currentNode.id);
+        const parentsMap: Record<string, any> = {};
+        for (const pid of parentIds) {
+          if (pid in context) parentsMap[pid] = context[pid];
+        }
+
+        // Provide ergonomic aliases for template resolution:
+        // - {{$prev.field}} for single-parent chains
+        // - {{$parents.<nodeId>.field}} for multi-parent nodes
+        if (parentIds.length === 1) {
+          context["$prev"] = context[parentIds[0]];
+        } else if (parentIds.length > 1) {
+          context["$prev"] = context[parentIds[0]];
+        } else {
+          context["$prev"] = undefined;
+        }
+        context["$parents"] = parentsMap;
+
         // Execute node with context containing outputs from previous nodes
         const output = await executeNode(currentNode, context);
         context[currentNode.id] = output;
