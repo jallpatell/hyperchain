@@ -8,6 +8,20 @@
       "when": 1771323362331,
       "tag": "0000_majestic_silver_centurion",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1773219825627,
+      "tag": "0001_mushy_hulk",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773316528415,
+      "tag": "0002_hot_arachne",
+      "breakpoints": true
     }
   ]
 }

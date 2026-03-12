@@ -5,138 +5,138 @@
 @tailwind utilities;
 
 :root {
-  --font-sans: 'Inter', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
 
-  /* N8N-inspired Palette - Professional, Technical, Clean */
-  --background: 220 13% 95%;
-  --foreground: 224 71% 4%;
-  
-  --card: 0 0% 100%;
-  --card-foreground: 224 71% 4%;
-  
-  --popover: 0 0% 100%;
-  --popover-foreground: 224 71% 4%;
-  
-  --primary: 346 84% 61%; /* Hot Pink/Red specific to n8n-style branding */
-  --primary-foreground: 0 0% 100%;
-  
-  --secondary: 220 14% 96%;
-  --secondary-foreground: 220 9% 46%;
-  
-  --muted: 220 14% 96%;
-  --muted-foreground: 220 8% 46%;
-  
-  --accent: 220 14% 96%;
-  --accent-foreground: 220 9% 46%;
-  
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 98%;
-  
-  --border: 220 13% 91%;
-  --input: 220 13% 91%;
-  --ring: 346 84% 61%;
-  
-  --radius: 0.5rem;
+    /* N8N-inspired Palette - Professional, Technical, Clean */
+    --background: 220 13% 95%;
+    --foreground: 224 71% 4%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 224 71% 4%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71% 4%;
+
+    --primary: 346 84% 61%; /* Hot Pink/Red specific to n8n-style branding */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 9% 46%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 8% 46%;
+
+    --accent: 220 14% 96%;
+    --accent-foreground: 220 9% 46%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 346 84% 61%;
+
+    --radius: 0.5rem;
 }
 
 .dark {
-  --background: 224 71% 4%;
-  --foreground: 210 40% 98%;
-  
-  --card: 222 47% 11%;
-  --card-foreground: 210 40% 98%;
-  
-  --popover: 222 47% 11%;
-  --popover-foreground: 210 40% 98%;
-  
-  --primary: 346 84% 61%;
-  --primary-foreground: 0 0% 100%;
-  
-  --secondary: 217 19% 27%;
-  --secondary-foreground: 210 40% 98%;
-  
-  --muted: 217 19% 27%;
-  --muted-foreground: 215 20% 65%;
-  
-  --accent: 217 19% 27%;
-  --accent-foreground: 210 40% 98%;
-  
-  --destructive: 0 62% 30%;
-  --destructive-foreground: 210 40% 98%;
-  
-  --border: 217 19% 27%;
-  --input: 217 19% 27%;
-  --ring: 346 84% 61%;
+    --background: 224 71% 4%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 346 84% 61%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 217 19% 27%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 19% 27%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 19% 27%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 19% 27%;
+    --input: 217 19% 27%;
+    --ring: 346 84% 61%;
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground antialiased;
-    font-family: var(--font-sans);
-  }
-  
-  /* Custom Scrollbar */
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-  ::-webkit-scrollbar-track {
-    @apply bg-transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    @apply bg-[#EF486F]/30 rounded-full;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-[#EF486F]/30 ;
-  }
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground antialiased;
+        font-family: var(--font-sans);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        @apply bg-transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+        @apply bg-[#EF486F]/30 rounded-full;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        @apply bg-[#EF486F]/30;
+    }
 }
 
 /* React Flow Customization */
 .react-flow__node {
-  @apply shadow-lg rounded-xl border-2 border-border bg-card transition-all duration-200;
+    @apply shadow-lg rounded-xl border-2 border-border bg-card transition-all duration-200;
 }
 
 .react-flow__node.selected {
-  @apply border-primary shadow-xl shadow-primary/10 ring-2 ring-primary/20;
+    @apply border-primary shadow-xl shadow-primary/10 ring-2 ring-primary/20;
 }
 
 .react-flow__handle {
-  @apply w-3 h-3 bg-muted-foreground border-2 border-background transition-colors;
+    @apply w-3 h-3 bg-muted-foreground border-2 border-background transition-colors;
 }
 
 .react-flow__handle:hover {
-  @apply bg-primary transform scale-125;
+    @apply bg-primary transform scale-125;
 }
 
 .react-flow__edge-path {
-  @apply stroke-muted-foreground stroke-[2];
+    @apply stroke-muted-foreground stroke-[2];
 }
 
 .react-flow__edge.selected .react-flow__edge-path {
-  @apply stroke-primary stroke-[3];
+    @apply stroke-primary stroke-[3];
 }
 
 /* Grid Background */
 .react-flow__background {
-  @apply bg-background/50;
+    @apply bg-background/50;
 }
 
 /* Sidebar Animation */
 .sidebar-enter {
-  transform: translateX(-100%);
+    transform: translateX(-100%);
 }
 .sidebar-enter-active {
-  transform: translateX(0);
-  transition: transform 300ms ease-out;
+    transform: translateX(0);
+    transition: transform 300ms ease-out;
 }
 .sidebar-exit {
-  transform: translateX(0);
+    transform: translateX(0);
 }
 .sidebar-exit-active {
-  transform: translateX(-100%);
-  transition: transform 300ms ease-in;
+    transform: translateX(-100%);
+    transition: transform 300ms ease-in;
 }

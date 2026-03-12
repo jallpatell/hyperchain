@@ -74,7 +74,6 @@ export async function registerRoutes(
     const execution = await storage.createExecution({
       workflowId,
       status: 'pending',
-      data: {}
     });
 
     // Run in background with trigger data
@@ -87,14 +86,17 @@ export async function registerRoutes(
 // --- Executions ---
   app.get(api.executions.list.path, async (req, res) => {
     const workflowId = req.query.workflowId ? Number(req.query.workflowId) : undefined;
-    const executions = await storage.getExecutions(workflowId);
+    const cursor = req.query.cursor ? Number(req.query.cursor) : undefined;
+    const limit = req.query.limit ? Math.min(Number(req.query.limit), 100) : 50; // Safety limit
+    
+    const executions = await storage.getExecutions(workflowId, cursor, limit);
     res.json(executions);
   });
 
   app.get(api.executions.get.path, async (req, res) => {
-    const execution = await storage.getExecution(Number(req.params.id));
-    if (!execution) return res.status(404).json({ message: 'Execution not found' });
-    res.json(execution);
+    const executionDetail = await storage.getExecutionDetail(Number(req.params.id));
+    if (!executionDetail) return res.status(404).json({ message: 'Execution not found' });
+    res.json(executionDetail);
   });
 
   // SSE stream endpoint for execution progress
@@ -430,14 +432,14 @@ export async function registerRoutes(
           position: { x: 320, y: 150 },
           data: {
             code: `
-const data = $inputs.webhook;
-const processed = {
-  timestamp: new Date().toISOString(),
-  itemCount: Array.isArray(data.body?.items) ? data.body.items.length : 0,
-  summary: "Data processed successfully"
-};
-return processed;
-            `
+            const data = $inputs.webhook;
+            const processed = {
+              timestamp: new Date().toISOString(),
+              itemCount: Array.isArray(data.body?.items) ? data.body.items.length : 0,
+              summary: "Data processed successfully"
+            };
+            return processed;
+                        `
           }
         },
         {
