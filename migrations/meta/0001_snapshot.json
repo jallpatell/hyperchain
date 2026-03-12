@@ -1,6 +1,6 @@
 {
-    "id": "eb810e66-5008-40d7-b14f-a1c66b8ef97a",
-    "prevId": "00000000-0000-0000-0000-000000000000",
+    "id": "7a990ae8-5162-474b-8b19-2de11a9b91cb",
+    "prevId": "eb810e66-5008-40d7-b14f-a1c66b8ef97a",
     "version": "7",
     "dialect": "postgresql",
     "tables": {
@@ -56,12 +56,6 @@
                     "name": "id",
                     "type": "serial",
                     "primaryKey": true,
-                    "notNull": true
-                },
-                "name": {
-                    "name": "name",
-                    "type": "text",
-                    "primaryKey": false,
                     "notNull": true
                 },
                 "workflow_id": {
@@ -140,7 +134,8 @@
                     "name": "description",
                     "type": "text",
                     "primaryKey": false,
-                    "notNull": false
+                    "notNull": false,
+                    "default": "''"
                 },
                 "is_active": {
                     "name": "is_active",

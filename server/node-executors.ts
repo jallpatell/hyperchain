@@ -3,11 +3,11 @@
  * Production-grade implementations with proper error handling
  */
 
-import vm from "vm";
-import type { WorkflowNode } from "@shared/schema";
-import { decrypt } from "./crypto";
-import { storage } from "./storage";
-import { refreshGmailToken, sendGmailWithOAuth } from "./oauth";
+import vm from 'vm';
+import type { WorkflowNode } from '@shared/schema';
+import { decrypt } from './crypto';
+import { storage } from './storage';
+import { refreshGmailToken, sendGmailWithOAuth } from './oauth';
 
 export type NodeExecutionContext = Record<string, any>;
 
@@ -15,211 +15,188 @@ export type NodeExecutionContext = Record<string, any>;
  * Resolve template variables in node data
  * Supports: {{node-id.field}} or {{node-id.nested.field}}
  */
-export function resolveTemplateVariables(
-  value: any,
-  context: NodeExecutionContext
-): any {
-  if (typeof value === "string") {
-    return value.replace(/\{\{([^}]+)\}\}/g, (match, path: string) => {
-      const trimmed = String(path || "").trim();
-      const [nodeId, ...fieldParts] = trimmed.split(".");
-      let current = context[nodeId];
+export function resolveTemplateVariables(value: any, context: NodeExecutionContext): any {
+    if (typeof value === 'string') {
+        return value.replace(/\{\{([^}]+)\}\}/g, (match, path: string) => {
+            const trimmed = String(path || '').trim();
+            const [nodeId, ...fieldParts] = trimmed.split('.');
+            let current = context[nodeId];
 
-      for (const part of fieldParts) {
-        if (current && typeof current === "object" && part in current) {
-          current = current[part];
-        } else {
-          return match; // Leave unresolved
+            for (const part of fieldParts) {
+                if (current && typeof current === 'object' && part in current) {
+                    current = current[part];
+                } else {
+                    return match; // Leave unresolved
+                }
+            }
+
+            return typeof current === 'string' ? current : JSON.stringify(current);
+        });
+    } else if (Array.isArray(value)) {
+        return value.map((v) => resolveTemplateVariables(v, context));
+    } else if (value && typeof value === 'object') {
+        const result: Record<string, any> = {};
+        for (const key in value) {
+            result[key] = resolveTemplateVariables(value[key], context);
         }
-      }
-
-      return typeof current === "string"
-        ? current
-        : JSON.stringify(current);
-    });
-  } else if (Array.isArray(value)) {
-    return value.map((v) =>
-      resolveTemplateVariables(v, context)
-    );
-  } else if (value && typeof value === "object") {
-    const result: Record<string, any> = {};
-    for (const key in value) {
-      result[key] = resolveTemplateVariables(value[key], context);
+        return result;
     }
-    return result;
-  }
-  return value;
+    return value;
 }
 
 /**
  * Fallback helper: if a template references a non-existent node but there is a single parent ($prev),
  * rewrite the template to use $prev before throwing an unresolved error.
  */
-export function fallbackToPrevIfSingleParent(
-  unresolved: string[],
-  context: NodeExecutionContext
-): string[] {
-  const hasPrev = "$prev" in context && context["$prev"] != null;
-  if (!hasPrev) return unresolved;
+export function fallbackToPrevIfSingleParent(unresolved: string[], context: NodeExecutionContext): string[] {
+    const hasPrev = '$prev' in context && context['$prev'] != null;
+    if (!hasPrev) return unresolved;
 
-  return unresolved.map((tpl) => {
-    const inner = tpl.replace(/^\{\{|\}\}$/g, "").trim();
-    const [nodeId, ...rest] = inner.split(".");
-    // Only rewrite if the referenced node does NOT exist in context
-    if (nodeId && !(nodeId in context) && rest.length > 0) {
-      return `{{$prev.${rest.join(".")}}}`;
-    }
-    return tpl;
-  });
+    return unresolved.map((tpl) => {
+        const inner = tpl.replace(/^\{\{|\}\}$/g, '').trim();
+        const [nodeId, ...rest] = inner.split('.');
+        // Only rewrite if the referenced node does NOT exist in context
+        if (nodeId && !(nodeId in context) && rest.length > 0) {
+            return `{{$prev.${rest.join('.')}}}`;
+        }
+        return tpl;
+    });
 }
 
 function findUnresolvedTemplates(value: any): string[] {
-  const unresolved: string[] = [];
+    const unresolved: string[] = [];
 
-  const visit = (v: any) => {
-    if (typeof v === "string") {
-      const matches = v.match(/\{\{[^}]+\}\}/g);
-      if (matches) unresolved.push(...matches);
-      return;
-    }
-    if (Array.isArray(v)) {
-      v.forEach(visit);
-      return;
-    }
-    if (v && typeof v === "object") {
-      Object.values(v).forEach(visit);
-    }
-  };
+    const visit = (v: any) => {
+        if (typeof v === 'string') {
+            const matches = v.match(/\{\{[^}]+\}\}/g);
+            if (matches) unresolved.push(...matches);
+            return;
+        }
+        if (Array.isArray(v)) {
+            v.forEach(visit);
+            return;
+        }
+        if (v && typeof v === 'object') {
+            Object.values(v).forEach(visit);
+        }
+    };
 
-  visit(value);
-  return unresolved;
+    visit(value);
+    return unresolved;
 }
 
 /**
  * Execute a webhook node - returns trigger data if available
  */
-export async function executeWebhook(
-  node: WorkflowNode,
-  context: NodeExecutionContext
-): Promise<any> {
-  if (context[node.id]) {
-    return context[node.id];
-  }
+export async function executeWebhook(node: WorkflowNode, context: NodeExecutionContext): Promise<any> {
+    if (context[node.id]) {
+        return context[node.id];
+    }
 
-  return {
-    received: true,
-    timestamp: new Date().toISOString(),
-    body: {},
-    headers: {},
-    query: {},
-  };
+    return {
+        received: true,
+        timestamp: new Date().toISOString(),
+        body: {},
+        headers: {},
+        query: {},
+    };
 }
 
 /**
  * Execute an HTTP request node with proper error handling
  */
-export async function executeHttpRequest(
-  node: WorkflowNode,
-  context: NodeExecutionContext
-): Promise<any> {
-  const resolvedData = resolveTemplateVariables(node.data, context);
-  const url = resolvedData.url;
+export async function executeHttpRequest(node: WorkflowNode, context: NodeExecutionContext): Promise<any> {
+    const resolvedData = resolveTemplateVariables(node.data, context);
+    const url = resolvedData.url;
 
-  if (!url) {
-    throw new Error(`[http-request] Missing required field: url`);
-  }
+    if (!url) {
+        throw new Error(`[http-request] Missing required field: url`);
+    }
 
-  const method = resolvedData.method || "GET";
-  const headers = resolvedData.headers || {};
-  const body = resolvedData.body;
+    const method = resolvedData.method || 'GET';
+    const headers = resolvedData.headers || {};
+    const body = resolvedData.body;
 
-  const fetchOptions: RequestInit = {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...headers,
-    },
-  };
+    const fetchOptions: RequestInit = {
+        method,
+        headers: {
+            'Content-Type': 'application/json',
+            ...headers,
+        },
+    };
 
-  if (!["GET", "HEAD"].includes(method) && body) {
-    fetchOptions.body = typeof body === "string" ? body : JSON.stringify(body);
-  }
+    if (!['GET', 'HEAD'].includes(method) && body) {
+        fetchOptions.body = typeof body === 'string' ? body : JSON.stringify(body);
+    }
 
-  const response = await fetch(url, fetchOptions);
-  const contentType = response.headers.get("Content-Type") || "";
-  let responseBody: any;
+    const response = await fetch(url, fetchOptions);
+    const contentType = response.headers.get('Content-Type') || '';
+    let responseBody: any;
 
-  if (contentType.includes("application/json")) {
-    responseBody = await response.json();
-  } else {
-    responseBody = await response.text();
-  }
+    if (contentType.includes('application/json')) {
+        responseBody = await response.json();
+    } else {
+        responseBody = await response.text();
+    }
 
-  return {
-    statusCode: response.status,
-    headers: Object.fromEntries(response.headers),
-    body: responseBody,
-    ok: response.ok,
-  };
+    return {
+        statusCode: response.status,
+        headers: Object.fromEntries(response.headers),
+        body: responseBody,
+        ok: response.ok,
+    };
 }
 
 /**
  * Execute a code/JavaScript node with proper async handling
  */
-export async function executeCode(
-  node: WorkflowNode,
-  context: NodeExecutionContext
-): Promise<any> {
-  const resolvedData = resolveTemplateVariables(node.data, context);
-  const code = resolvedData.code;
+export async function executeCode(node: WorkflowNode, context: NodeExecutionContext): Promise<any> {
+    const resolvedData = resolveTemplateVariables(node.data, context);
+    const code = resolvedData.code;
 
-  if (!code) {
-    throw new Error(`[code] Missing required field: code`);
-  }
+    if (!code) {
+        throw new Error(`[code] Missing required field: code`);
+    }
 
-  // Create a safe sandbox with access to context and utilities
-  const sandbox = {
-    // Context data from previous nodes
-    $inputs: context,
+    // Create a safe sandbox with access to context and utilities
+    const sandbox = {
+        // Context data from previous nodes
+        $inputs: context,
 
-    // Utilities
-    $utils: {
-      sleep: (ms: number) => new Promise((r) => setTimeout(r, ms)),
-      format: (str: string, ...args: any[]) =>
-        str.replace(/{}/g, () => JSON.stringify(args.shift())),
-    },
+        // Utilities
+        $utils: {
+            sleep: (ms: number) => new Promise((r) => setTimeout(r, ms)),
+            format: (str: string, ...args: any[]) => str.replace(/{}/g, () => JSON.stringify(args.shift())),
+        },
 
-    // Console for logging
-    console: {
-      log: (...args: any[]) =>
-        console.log(`[${node.id}]`, ...args),
-      error: (...args: any[]) =>
-        console.error(`[${node.id}]`, ...args),
-      warn: (...args: any[]) =>
-        console.warn(`[${node.id}]`, ...args),
-    },
+        // Console for logging
+        console: {
+            log: (...args: any[]) => console.log(`[${node.id}]`, ...args),
+            error: (...args: any[]) => console.error(`[${node.id}]`, ...args),
+            warn: (...args: any[]) => console.warn(`[${node.id}]`, ...args),
+        },
 
-    // Global functions available in browser
-    fetch: globalThis.fetch as any,
-    JSON: JSON,
-    Math: Math,
-    Date: Date,
-    Array: Array,
-    Object: Object,
-    String: String,
-    Number: Number,
-    Boolean: Boolean,
+        // Global functions available in browser
+        fetch: globalThis.fetch as any,
+        JSON: JSON,
+        Math: Math,
+        Date: Date,
+        Array: Array,
+        Object: Object,
+        String: String,
+        Number: Number,
+        Boolean: Boolean,
 
-    // Result placeholder
-    $result: undefined as any,
-  };
+        // Result placeholder
+        $result: undefined as any,
+    };
 
-  const vmContext = vm.createContext(sandbox, {
-    name: `node-${node.id}`,
-  });
+    const vmContext = vm.createContext(sandbox, {
+        name: `node-${node.id}`,
+    });
 
-  // Wrap code in async IIFE to support await
-  const wrappedCode = `
+    // Wrap code in async IIFE to support await
+    const wrappedCode = `
 (async function() {
   try {
     ${code}
@@ -229,320 +206,289 @@ export async function executeCode(
 })().then(r => $result = r)
 `;
 
-  try {
-    const script = new vm.Script(wrappedCode, {
-      filename: `node-${node.id}.js`,
-    });
+    try {
+        const script = new vm.Script(wrappedCode, {
+            filename: `node-${node.id}.js`,
+        });
 
-    script.runInContext(vmContext, {
-      timeout: 30000, // 30 second timeout
-      displayErrors: true,
-    });
+        script.runInContext(vmContext, {
+            timeout: 30000, // 30 second timeout
+            displayErrors: true,
+        });
 
-    // Wait for async code to complete
-    await new Promise<void>((resolve, reject) => {
-      let resolved = false;
+        // Wait for async code to complete
+        await new Promise<void>((resolve, reject) => {
+            let resolved = false;
 
-      const checkResult = setInterval(() => {
-        if (sandbox.$result !== undefined || resolved) {
-          clearInterval(checkResult);
-          if (!resolved) {
-            resolved = true;
-            resolve();
-          }
-        }
-      }, 10);
+            const checkResult = setInterval(() => {
+                if (sandbox.$result !== undefined || resolved) {
+                    clearInterval(checkResult);
+                    if (!resolved) {
+                        resolved = true;
+                        resolve();
+                    }
+                }
+            }, 10);
 
-      // Failsafe timeout
-      setTimeout(() => {
-        clearInterval(checkResult);
-        if (!resolved) {
-          resolved = true;
-          reject(new Error("Code execution timeout"));
-        }
-      }, 35000);
-    });
+            // Failsafe timeout
+            setTimeout(() => {
+                clearInterval(checkResult);
+                if (!resolved) {
+                    resolved = true;
+                    reject(new Error('Code execution timeout'));
+                }
+            }, 35000);
+        });
 
-    return sandbox.$result;
-  } catch (err) {
-    throw new Error(
-      `[code] Execution failed: ${err instanceof Error ? err.message : String(err)}`
-    );
-  }
+        return sandbox.$result;
+    } catch (err) {
+        throw new Error(`[code] Execution failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
 }
 
 /**
  * Execute an AI chat node (Claude)
  */
-export async function executeAiChat(
-  node: WorkflowNode,
-  context: NodeExecutionContext
-): Promise<any> {
-  const resolvedData = resolveTemplateVariables(node.data, context);
-  const prompt = resolvedData.prompt;
-  const systemPrompt = resolvedData.systemPrompt;
+export async function executeAiChat(node: WorkflowNode, context: NodeExecutionContext): Promise<any> {
+    const resolvedData = resolveTemplateVariables(node.data, context);
+    const prompt = resolvedData.prompt;
+    const systemPrompt = resolvedData.systemPrompt;
 
-  if (!prompt && !systemPrompt) {
-    throw new Error(
-      `[ai-chat] Missing required fields: at least one of prompt or systemPrompt`
-    );
-  }
+    if (!prompt && !systemPrompt) {
+        throw new Error(`[ai-chat] Missing required fields: at least one of prompt or systemPrompt`);
+    }
 
-  const model = resolvedData.model || "claude-haiku-4-5-20251001";
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+    const model = resolvedData.model || 'claude-haiku-4-5-20251001';
+    const apiKey = process.env.ANTHROPIC_API_KEY;
 
-  if (!apiKey) {
-    throw new Error(`[ai-chat] Missing ANTHROPIC_API_KEY environment variable`);
-  }
+    if (!apiKey) {
+        throw new Error(`[ai-chat] Missing ANTHROPIC_API_KEY environment variable`);
+    }
 
-  const payload = {
-    model,
-    max_tokens: 2048,
-    ...(systemPrompt && { system: systemPrompt }),
-    messages: [
-      {
-        role: "user" as const,
-        content: prompt || "",
-      },
-    ],
-  };
+    const payload = {
+        model,
+        max_tokens: 2048,
+        ...(systemPrompt && { system: systemPrompt }),
+        messages: [
+            {
+                role: 'user' as const,
+                content: prompt || '',
+            },
+        ],
+    };
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`[ai-chat] API error ${response.status}: ${errorText}`);
-  }
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`[ai-chat] API error ${response.status}: ${errorText}`);
+    }
 
-  const result = (await response.json()) as any;
+    const result = (await response.json()) as any;
 
-  return {
-    text: result.content[0]?.text || "",
-    model: result.model,
-    usage: result.usage,
-  };
+    return {
+        text: result.content[0]?.text || '',
+        model: result.model,
+        usage: result.usage,
+    };
 }
 
 /**
  * Execute a database node
  */
-export async function executeDatabase(
-  node: WorkflowNode,
-  context: NodeExecutionContext
-): Promise<any> {
-  const resolvedData = resolveTemplateVariables(node.data, context);
-  const connectionString = resolvedData.connectionString;
-  const query = resolvedData.query;
+export async function executeDatabase(node: WorkflowNode, context: NodeExecutionContext): Promise<any> {
+    const resolvedData = resolveTemplateVariables(node.data, context);
+    const connectionString = resolvedData.connectionString;
+    const query = resolvedData.query;
 
-  if (!connectionString) {
-    throw new Error(`[database] Missing required field: connectionString`);
-  }
-  if (!query) {
-    throw new Error(`[database] Missing required field: query`);
-  }
+    if (!connectionString) {
+        throw new Error(`[database] Missing required field: connectionString`);
+    }
+    if (!query) {
+        throw new Error(`[database] Missing required field: query`);
+    }
 
-  const { Client } = await import("pg");
-  const client = new Client({ connectionString });
+    const { Client } = await import('pg');
+    const client = new Client({ connectionString });
 
-  try {
-    await client.connect();
-    const result = await client.query(query);
-    const rows = result.rows;
-    const first = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
-    const emails = Array.isArray(rows)
-      ? rows
-          .map((r: any) => (r && typeof r === "object" ? r.email : undefined))
-          .filter((v: any) => typeof v === "string" && v.trim().length > 0)
-          .join(",")
-      : "";
-    const text = JSON.stringify(rows, null, 2);
-    return {
-      rows,
-      rowCount: result.rowCount,
-      fields: result.fields.map((f: any) => f.name),
-      first,
-      emails,
-      text,
-    };
-  } finally {
-    await client.end();
-  }
+    try {
+        await client.connect();
+        const result = await client.query(query);
+        const rows = result.rows;
+        const first = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+        const emails = Array.isArray(rows)
+            ? rows
+                  .map((r: any) => (r && typeof r === 'object' ? r.email : undefined))
+                  .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
+                  .join(',')
+            : '';
+        const text = JSON.stringify(rows, null, 2);
+        return {
+            rows,
+            rowCount: result.rowCount,
+            fields: result.fields.map((f: any) => f.name),
+            first,
+            emails,
+            text,
+        };
+    } finally {
+        await client.end();
+    }
 }
 
 /**
  * Execute an email node with OAuth or SMTP
  */
-export async function executeEmail(
-  node: WorkflowNode,
-  context: NodeExecutionContext
-): Promise<any> {
-  const resolvedData = resolveTemplateVariables(node.data, context);
-  const to = resolvedData.to;
-  const subject = resolvedData.subject;
-  const body = resolvedData.body;
-  const credentialId = resolvedData.credentialId; // Reference to stored credential
+export async function executeEmail(node: WorkflowNode, context: NodeExecutionContext): Promise<any> {
+    const resolvedData = resolveTemplateVariables(node.data, context);
+    const to = resolvedData.to;
+    const subject = resolvedData.subject;
+    const body = resolvedData.body;
+    const credentialId = resolvedData.credentialId; // Reference to stored credential
 
-  const unresolved = findUnresolvedTemplates({ to, subject, body });
-  if (unresolved.length > 0) {
-    const rewritten = fallbackToPrevIfSingleParent(unresolved, context);
-    const stillUnresolved = findUnresolvedTemplates({ to, subject, body });
-    if (stillUnresolved.length > 0) {
-      const availableKeys = Object.keys(context || {}).sort().join(",");
-      throw new Error(
-        `[email] Unresolved template(s): ${stillUnresolved.join(", ")} (available context keys: ${availableKeys})`
-      );
-    }
-    // Re-resolve with rewritten templates
-    const again = resolveTemplateVariables({ to, subject, body }, context);
-    return { to: again.to, subject: again.subject, body: again.body, credentialId };
-  }
-
-  if (!to) {
-    throw new Error(`[email] Missing required field: to`);
-  }
-  if (!subject) {
-    throw new Error(`[email] Missing required field: subject`);
-  }
-  if (!body) {
-    throw new Error(`[email] Missing required field: body`);
-  }
-
-  // Try OAuth first if credentialId is provided
-  if (credentialId) {
-    const credential = await storage.getCredential(credentialId);
-    if (!credential) {
-      throw new Error(`[email] Credential not found: ${credentialId}`);
+    const unresolved = findUnresolvedTemplates({ to, subject, body });
+    if (unresolved.length > 0) {
+        const rewritten = fallbackToPrevIfSingleParent(unresolved, context);
+        const stillUnresolved = findUnresolvedTemplates({ to, subject, body });
+        if (stillUnresolved.length > 0) {
+            const availableKeys = Object.keys(context || {})
+                .sort()
+                .join(',');
+            throw new Error(
+                `[email] Unresolved template(s): ${stillUnresolved.join(', ')} (available context keys: ${availableKeys})`,
+            );
+        }
+        // Re-resolve with rewritten templates
+        const again = resolveTemplateVariables({ to, subject, body }, context);
+        return { to: again.to, subject: again.subject, body: again.body, credentialId };
     }
 
-    const decrypted = decrypt(credential.data as string);
+    if (!to) {
+        throw new Error(`[email] Missing required field: to`);
+    }
+    if (!subject) {
+        throw new Error(`[email] Missing required field: subject`);
+    }
+    if (!body) {
+        throw new Error(`[email] Missing required field: body`);
+    }
 
-    if (credential.type === "gmail-oauth") {
-      try {
-        let tokens = decrypted.tokens;
-
-        // Refresh token if expired
-        if (tokens.expiresAt < Date.now()) {
-          tokens = await refreshGmailToken(
-            tokens.refreshToken,
-            decrypted.clientId,
-            decrypted.clientSecret
-          );
-
-          // Update stored tokens (optional - can cache in memory)
-          await storage.updateCredential(credentialId, {
-            data: JSON.stringify({ ...decrypted, tokens }),
-          });
+    // Try OAuth first if credentialId is provided
+    if (credentialId) {
+        const credential = await storage.getCredential(credentialId);
+        if (!credential) {
+            throw new Error(`[email] Credential not found: ${credentialId}`);
         }
 
-        const result = await sendGmailWithOAuth(
-          to,
-          subject,
-          body,
-          tokens.accessToken,
-          decrypted.email
-        );
+        const decrypted = decrypt(credential.data as string);
 
-        return {
-          messageId: result.messageId,
-          sent: true,
-          provider: "gmail-oauth",
-        };
-      } catch (err) {
-        throw new Error(
-          `[email] Gmail OAuth send failed: ${err instanceof Error ? err.message : String(err)}`
-        );
-      }
+        if (credential.type === 'gmail-oauth') {
+            try {
+                let tokens = decrypted.tokens;
+
+                // Refresh token if expired
+                if (tokens.expiresAt < Date.now()) {
+                    tokens = await refreshGmailToken(tokens.refreshToken, decrypted.clientId, decrypted.clientSecret);
+
+                    // Update stored tokens (optional - can cache in memory)
+                    await storage.updateCredential(credentialId, {
+                        data: JSON.stringify({ ...decrypted, tokens }),
+                    });
+                }
+
+                const result = await sendGmailWithOAuth(to, subject, body, tokens.accessToken, decrypted.email);
+
+                return {
+                    messageId: result.messageId,
+                    sent: true,
+                    provider: 'gmail-oauth',
+                };
+            } catch (err) {
+                throw new Error(`[email] Gmail OAuth send failed: ${err instanceof Error ? err.message : String(err)}`);
+            }
+        }
     }
-  }
 
-  // Fallback to SMTP
-  let nodemailer: any;
-  try {
-    // @ts-ignore - nodemailer is optional dependency
-    nodemailer = await import("nodemailer");
-  } catch {
-    throw new Error(
-      `[email] nodemailer not installed and no OAuth credential provided`
-    );
-  }
+    // Fallback to SMTP
+    let nodemailer: any;
+    try {
+        // @ts-ignore - nodemailer is optional dependency
+        nodemailer = await import('nodemailer');
+    } catch {
+        throw new Error(`[email] nodemailer not installed and no OAuth credential provided`);
+    }
 
-  const smtpHost = resolvedData.host || process.env.SMTP_HOST;
-  const smtpPort =
-    parseInt(resolvedData.port || process.env.SMTP_PORT || "587", 10);
-  const smtpUser = resolvedData.user || process.env.SMTP_USER;
-  const smtpPass = resolvedData.pass || process.env.SMTP_PASS;
-  const smtpFrom = resolvedData.from || process.env.SMTP_FROM || smtpUser;
+    const smtpHost = resolvedData.host || process.env.SMTP_HOST;
+    const smtpPort = parseInt(resolvedData.port || process.env.SMTP_PORT || '587', 10);
+    const smtpUser = resolvedData.user || process.env.SMTP_USER;
+    const smtpPass = resolvedData.pass || process.env.SMTP_PASS;
+    const smtpFrom = resolvedData.from || process.env.SMTP_FROM || smtpUser;
 
-  if (!smtpHost || !smtpUser || !smtpPass) {
-    throw new Error(
-      `[email] Missing SMTP configuration (host, user, pass) and no OAuth credential`
-    );
-  }
+    if (!smtpHost || !smtpUser || !smtpPass) {
+        throw new Error(`[email] Missing SMTP configuration (host, user, pass) and no OAuth credential`);
+    }
 
-  const transporter = (nodemailer as any).default.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpPort === 465,
-    auth: {
-      user: smtpUser,
-      pass: smtpPass,
-    },
-  });
+    const transporter = (nodemailer as any).default.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465,
+        auth: {
+            user: smtpUser,
+            pass: smtpPass,
+        },
+    });
 
-  const info = await transporter.sendMail({
-    from: smtpFrom,
-    to,
-    subject,
-    text: body,
-  });
+    const info = await transporter.sendMail({
+        from: smtpFrom,
+        to,
+        subject,
+        text: body,
+    });
 
-  return {
-    messageId: info.messageId,
-    accepted: info.accepted,
-    rejected: info.rejected,
-    sent: true,
-    provider: "smtp",
-  };
+    return {
+        messageId: info.messageId,
+        accepted: info.accepted,
+        rejected: info.rejected,
+        sent: true,
+        provider: 'smtp',
+    };
 }
 
 /**
  * Generic node executor that dispatches to type-specific handlers
  */
-export async function executeNode(
-  node: WorkflowNode,
-  context: NodeExecutionContext
-): Promise<any> {
-  const nodeType = node.type;
+export async function executeNode(node: WorkflowNode, context: NodeExecutionContext): Promise<any> {
+    const nodeType = node.type;
 
-  switch (nodeType) {
-    case "webhook":
-      return await executeWebhook(node, context);
+    switch (nodeType) {
+        case 'webhook':
+            return await executeWebhook(node, context);
 
-    case "http-request":
-      return await executeHttpRequest(node, context);
+        case 'http-request':
+            return await executeHttpRequest(node, context);
 
-    case "code":
-      return await executeCode(node, context);
+        case 'code':
+            return await executeCode(node, context);
 
-    case "ai-chat":
-      return await executeAiChat(node, context);
+        case 'ai-chat':
+            return await executeAiChat(node, context);
 
-    case "database":
-      return await executeDatabase(node, context);
+        case 'database':
+            return await executeDatabase(node, context);
 
-    case "email":
-      return await executeEmail(node, context);
+        case 'email':
+            return await executeEmail(node, context);
 
-    default:
-      console.warn(`[executor] Unknown node type: ${nodeType}`);
-      return { ...node.data, executed: true, nodeType };
-  }
+        default:
+            console.warn(`[executor] Unknown node type: ${nodeType}`);
+            return { ...node.data, executed: true, nodeType };
+    }
 }
