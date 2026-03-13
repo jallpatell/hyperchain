@@ -462,8 +462,23 @@ export default function Landing() {
           </h1>
           <p className="delay-2 text-xl md:text-2xl text-[#6b7280] max-w-2xl mx-auto mb-10 leading-relaxed font-normal">
             Hyperchain connects your apps, automates your processes, and uses AI
-            to keep everything running — so your team can focus on what matters.
+            to keep everything running — so your team can{" "}
+
+            <span className="inline-block border-2 border-dotted border-[#d1d5db] px-2 py-[2px] -rotate-2 rounded-sm">
+              <span className="inline-block rotate-2 font-semibold">
+                focus
+              </span>
+            </span>{" "}
+
+            on what{" "}
+
+            <span className="inline-block border-2 border-dotted border-[#d1d5db] px-2 py-[2px] rotate-2 rounded-sm">
+              <span className="inline-block -rotate-2 font-semibold">
+                matters
+              </span>
+            </span>.
           </p>
+
           <div className="delay-3 flex flex-col sm:flex-row gap-4 justify-center mb-14">
             <a
               href="#"
@@ -477,23 +492,24 @@ export default function Landing() {
             </a>
             <a
               href="#"
-              className="px-8 py-4 text-base font-semibold text-[#1a1d23] rounded-xl border border-[#e5e7eb] hover:bg-[#F1F2F4] transition-all no-underline inline-block bg-white"
+              className="px-8 py-4 text-base font-semibold text-[#1a1d23] rounded-xl border border-[#e5e7eb] hover:bg-[#F1F2F4] transition-all no-underline inline-flex items-center gap-2 bg-white"
             >
-              Watch demo →
+              Watch demo <FaRegCaretSquareRight />
             </a>
+
           </div>
-          <p className="delay-4 font-mono-tech text-xs text-[#9ca3af] tracking-wide">
+          {/* <p className="delay-4 font-mono-tech text-xs text-[#9ca3af] tracking-wide">
             NO CREDIT CARD · FREE UP TO 1,000 TASKS/MONTH · SETUP IN 2 MIN
-          </p>
+          </p> */}
         </div>
-        <div className="relative z-10 mt-16 w-full max-w-4xl mx-auto px-6 animate-float">
+        <div classNa    me="relative z-10 mt-16 w-full max-w-4xl mx-auto px-6 animate-float">
           <div className="rounded-2xl border border-[#e5e7eb] bg-white shadow-2xl overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-[#F1F2F4] bg-[#F1F2F4]">
               <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
               <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
               <div className="w-3 h-3 rounded-full bg-[#28c840]" />
               <div className="flex-1 mx-4 bg-white rounded-md px-3 py-1 font-mono-tech text-xs text-[#9ca3af]">
-                app.hyperchain.ai/workflows/lead-pipeline
+                app.hyperchain.ai/workflows/rag-agent
               </div>
               <span className="status-active">
                 <span className="status-dot" />
@@ -961,7 +977,7 @@ export default function Landing() {
                 <div className="absolute inset-0 dotted-grid-light opacity-50 pointer-events-none rounded-2xl" />
                 {p.highlight && (
                   <div
-                    className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full font-mono-tech text-xs font-bold text-white uppercase tracking-wide"
+                    className="absolute top-8 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full font-mono-tech text-xs font-bold text-white uppercase tracking-wide"
                     style={{ background: "#EF486F" }}
                   >
                     Most Popular
@@ -1109,9 +1125,9 @@ export default function Landing() {
               Talk to sales
             </a>
           </div>
-          <p className="mt-8 font-mono-tech text-xs text-[#6b7280] uppercase tracking-widest">
+          {/* <p className="mt-8 font-mono-tech text-xs text-[#6b7280] uppercase tracking-widest">
             No credit card · SOC 2 · 99.98% uptime
-          </p>
+          </p> */}
         </div>
       </section>
       <footer className="bg-[#0d1014] py-16 relative overflow-hidden">
