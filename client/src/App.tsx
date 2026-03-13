@@ -4,6 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
+import Landing from '@/pages/Landing';
 import Workflows from '@/pages/Workflows';
 import Editor from '@/pages/Editor';
 import Executions from '@/pages/Executions';
@@ -15,7 +16,8 @@ import Settings from '@/pages/Settings';
 function Router() {
     return (
         <Switch>
-            <Route path="/" component={Workflows} />
+            <Route path="/" component={Landing} />
+            <Route path="/workflows" component={Workflows} />
             <Route path="/workflow/:id" component={Editor} />
             <Route path="/executions" component={Executions} />
             <Route path="/executions/viewdetails/:id" component={ExecutionDetails} />
