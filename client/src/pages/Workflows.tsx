@@ -118,7 +118,7 @@ export default function Workflows() {
                     {isLoading ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {[1, 2, 3].map((i) => (
-                                <div key={i} className="h-48 rounded-xl bg-card border border-border animate-pulse" />
+                                <div key={i} className="h-48 rounded-xl bg-card border border-border animate-pulse animate-blink" />
                             ))}
                         </div>
                     ) : filteredWorkflows?.length === 0 ? (
