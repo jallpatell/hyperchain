@@ -48,6 +48,27 @@ export const credentials = pgTable('credentials', {
     createdAt: timestamp('created_at').defaultNow(),
 });
 
+export const apiKeys = pgTable('api_keys', {
+    id: serial('id').primaryKey(),
+    userId: text('user_id').notNull(), // Clerk user ID
+    name: text('name').notNull(),
+    key: text('key').notNull().unique(), // The actual API key (hashed)
+    keyPrefix: text('key_prefix').notNull(), // First 8 chars for display (e.g., "hc_12345...")
+    lastUsedAt: timestamp('last_used_at'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const userSettings = pgTable('user_settings', {
+    id: serial('id').primaryKey(),
+    userId: text('user_id').notNull().unique(), // Clerk user ID
+    webhookSecret: text('webhook_secret').notNull(),
+    defaultTimeout: integer('default_timeout').default(30), // seconds
+    defaultRetryAttempts: integer('default_retry_attempts').default(0),
+    defaultRetryDelay: integer('default_retry_delay').default(1000), // milliseconds
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});
+
 // === RELATIONS ===
 export const workflowsRelations = relations(workflows, ({ many }) => ({
     executions: many(executions),
@@ -84,6 +105,8 @@ export const insertExecutionNodeSchema = createInsertSchema(executionNodes).omit
     finishedAt: true,
 });
 export const insertCredentialSchema = createInsertSchema(credentials).omit({ id: true, createdAt: true });
+export const insertApiKeySchema = createInsertSchema(apiKeys).omit({ id: true, createdAt: true, lastUsedAt: true });
+export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({ id: true, createdAt: true, updatedAt: true });
 
 // === EXPLICIT API CONTRACT TYPES ===
 
@@ -105,6 +128,14 @@ export type InsertExecutionNode = z.infer<typeof insertExecutionNodeSchema>;
 // Credential Types
 export type Credential = typeof credentials.$inferSelect;
 export type InsertCredential = z.infer<typeof insertCredentialSchema>;
+
+// API Key Types
+export type ApiKey = typeof apiKeys.$inferSelect;
+export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
+
+// User Settings Types
+export type UserSettings = typeof userSettings.$inferSelect;
+export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
 
 // Node Types (Frontend/Backend shared structure)
 export interface WorkflowNode {

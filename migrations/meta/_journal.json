@@ -22,6 +22,13 @@
       "when": 1773316528415,
       "tag": "0002_hot_arachne",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1774005769343,
+      "tag": "0003_orange_mindworm",
+      "breakpoints": true
     }
   ]
 }

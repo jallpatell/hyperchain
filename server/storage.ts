@@ -4,14 +4,20 @@ import {
     executions,
     executionNodes,
     credentials,
+    apiKeys,
+    userSettings,
     type InsertWorkflow,
     type InsertExecution,
     type InsertExecutionNode,
     type InsertCredential,
+    type InsertApiKey,
+    type InsertUserSettings,
     type Workflow,
     type Execution,
     type ExecutionNode,
     type Credential,
+    type ApiKey,
+    type UserSettings,
     type ExecutionListItem,
     type ExecutionDetail,
     updateExecutionSchema,
@@ -48,6 +54,19 @@ export interface IStorage {
     createCredential(credential: InsertCredential): Promise<Credential>;
     updateCredential(id: number, updates: Partial<InsertCredential>): Promise<Credential>;
     deleteCredential(id: number): Promise<void>;
+
+    // API Keys
+    getApiKeys(userId: string): Promise<ApiKey[]>;
+    getApiKey(id: number): Promise<ApiKey | undefined>;
+    getApiKeyByKey(key: string): Promise<ApiKey | undefined>;
+    createApiKey(apiKey: InsertApiKey): Promise<ApiKey>;
+    updateApiKeyLastUsed(id: number): Promise<void>;
+    deleteApiKey(id: number): Promise<void>;
+
+    // User Settings
+    getUserSettings(userId: string): Promise<UserSettings | undefined>;
+    createUserSettings(settings: InsertUserSettings): Promise<UserSettings>;
+    updateUserSettings(userId: string, updates: Partial<InsertUserSettings>): Promise<UserSettings>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -194,6 +213,54 @@ export class DatabaseStorage implements IStorage {
 
     async deleteCredential(id: number): Promise<void> {
         await db.delete(credentials).where(eq(credentials.id, id));
+    }
+
+    // API Keys
+    async getApiKeys(userId: string): Promise<ApiKey[]> {
+        return await db.select().from(apiKeys).where(eq(apiKeys.userId, userId)).orderBy(desc(apiKeys.createdAt));
+    }
+
+    async getApiKey(id: number): Promise<ApiKey | undefined> {
+        const [apiKey] = await db.select().from(apiKeys).where(eq(apiKeys.id, id));
+        return apiKey;
+    }
+
+    async getApiKeyByKey(key: string): Promise<ApiKey | undefined> {
+        const [apiKey] = await db.select().from(apiKeys).where(eq(apiKeys.key, key));
+        return apiKey;
+    }
+
+    async createApiKey(insertApiKey: InsertApiKey): Promise<ApiKey> {
+        const [apiKey] = await db.insert(apiKeys).values(insertApiKey).returning();
+        return apiKey;
+    }
+
+    async updateApiKeyLastUsed(id: number): Promise<void> {
+        await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, id));
+    }
+
+    async deleteApiKey(id: number): Promise<void> {
+        await db.delete(apiKeys).where(eq(apiKeys.id, id));
+    }
+
+    // User Settings
+    async getUserSettings(userId: string): Promise<UserSettings | undefined> {
+        const [settings] = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
+        return settings;
+    }
+
+    async createUserSettings(insertSettings: InsertUserSettings): Promise<UserSettings> {
+        const [settings] = await db.insert(userSettings).values(insertSettings).returning();
+        return settings;
+    }
+
+    async updateUserSettings(userId: string, updates: Partial<InsertUserSettings>): Promise<UserSettings> {
+        const [updated] = await db
+            .update(userSettings)
+            .set({ ...updates, updatedAt: new Date() })
+            .where(eq(userSettings.userId, userId))
+            .returning();
+        return updated;
     }
 }
 

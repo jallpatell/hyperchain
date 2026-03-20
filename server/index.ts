@@ -26,6 +26,28 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
+// Clerk user ID extraction middleware
+app.use((req, res, next) => {
+    // Extract user ID from Clerk's __session cookie or authorization header
+    // In production, you'd verify the JWT token here
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        // Extract user ID from JWT (simplified - in production use proper JWT verification)
+        try {
+            const token = authHeader.substring(7);
+            const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+            req.headers['x-user-id'] = payload.sub || 'default-user';
+        } catch (err) {
+            // If parsing fails, use default
+            req.headers['x-user-id'] = 'default-user';
+        }
+    } else {
+        // For development, use a default user ID
+        req.headers['x-user-id'] = 'default-user';
+    }
+    next();
+});
+
 // Logger Utility.
 export function log(message: string, source = 'express') {
     const formattedTime = new Date().toLocaleTimeString('en-US', {

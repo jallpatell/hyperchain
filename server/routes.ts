@@ -1,10 +1,10 @@
-
 import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import { executeWorkflow, registerSSEListener, unregisterSSEListener } from "./execution";
+import crypto from "crypto";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -382,6 +382,128 @@ export async function registerRoutes(
           </body>
         </html>
       `);
+    }
+  });
+
+  // --- Settings Routes ---
+  
+  // Get user settings
+  app.get("/api/settings", async (req, res) => {
+    try {
+      const userId = req.headers['x-user-id'] as string || 'default-user';
+      
+      let settings = await storage.getUserSettings(userId);
+      
+      if (!settings) {
+        const { generateToken } = await import("./crypto");
+        settings = await storage.createUserSettings({
+          userId,
+          webhookSecret: generateToken(),
+          defaultTimeout: 30,
+          defaultRetryAttempts: 0,
+          defaultRetryDelay: 1000,
+        });
+      }
+      
+      res.json(settings);
+    } catch (err) {
+      console.error('[settings] Get error:', err);
+      res.status(500).json({ message: 'Failed to load settings' });
+    }
+  });
+
+  app.put("/api/settings", async (req, res) => {
+    try {
+      const userId = req.headers['x-user-id'] as string || 'default-user';
+      const updates = req.body;
+      
+      const settings = await storage.updateUserSettings(userId, updates);
+      res.json(settings);
+    } catch (err) {
+      console.error('[settings] Update error:', err);
+      res.status(500).json({ message: 'Failed to update settings' });
+    }
+  });
+
+  app.post("/api/settings/webhook-secret", async (req, res) => {
+    try {
+      const userId = req.headers['x-user-id'] as string || 'default-user';
+      const { generateToken } = await import("./crypto");
+      
+      const settings = await storage.updateUserSettings(userId, {
+        webhookSecret: generateToken(),
+      });
+      
+      res.json({ webhookSecret: settings.webhookSecret });
+    } catch (err) {
+      console.error('[settings] Regenerate secret error:', err);
+      res.status(500).json({ message: 'Failed to regenerate webhook secret' });
+    }
+  });
+
+  app.get("/api/settings/api-keys", async (req, res) => {
+    try {
+      const userId = req.headers['x-user-id'] as string || 'default-user';
+      const keys = await storage.getApiKeys(userId);
+      
+      const sanitized = keys.map(k => ({
+        id: k.id,
+        name: k.name,
+        keyPrefix: k.keyPrefix,
+        lastUsedAt: k.lastUsedAt,
+        createdAt: k.createdAt,
+      }));
+      
+      res.json(sanitized);
+    } catch (err) {
+      console.error('[api-keys] List error:', err);
+      res.status(500).json({ message: 'Failed to load API keys' });
+    }
+  });
+
+  app.post("/api/settings/api-keys", async (req, res) => {
+    try {
+      const userId = req.headers['x-user-id'] as string || 'default-user';
+      const { name } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ message: 'Name is required' });
+      }
+      
+      const keyValue = `hc_${crypto.randomBytes(32).toString('hex')}`;
+      const keyPrefix = keyValue.substring(0, 10);
+      const hashedKey = crypto.createHash('sha256').update(keyValue).digest('hex');
+      
+      const apiKey = await storage.createApiKey({
+        userId,
+        name,
+        key: hashedKey,
+        keyPrefix,
+      });
+      
+      res.json({
+        key: keyValue,
+        apiKey: {
+          id: apiKey.id,
+          name: apiKey.name,
+          keyPrefix: apiKey.keyPrefix,
+          lastUsedAt: apiKey.lastUsedAt,
+          createdAt: apiKey.createdAt,
+        },
+      });
+    } catch (err) {
+      console.error('[api-keys] Create error:', err);
+      res.status(500).json({ message: 'Failed to create API key' });
+    }
+  });
+
+  app.delete("/api/settings/api-keys/:id", async (req, res) => {
+    try {
+      await storage.deleteApiKey(Number(req.params.id));
+      res.status(204).send();
+    } catch (err) {
+      console.error('[api-keys] Delete error:', err);
+      res.status(500).json({ message: 'Failed to delete API key' });
     }
   });
 
