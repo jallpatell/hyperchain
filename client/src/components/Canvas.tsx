@@ -436,6 +436,19 @@ function CanvasContent({
                         </div>
                     )}
 
+                    <div className="mb-3 flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">
+                            Live logs for this run.
+                        </span>
+                        <button
+                            type="button"
+                            className="text-blue-600 hover:underline font-medium"
+                            onClick={() => navigate(`/executions/viewdetails/${currentExecutionId}`)}
+                        >
+                            View full logs
+                        </button>
+                    </div>
+
                     <div className="space-y-2">
                         {executionState.progress.nodes.map((node) => (
                             <div key={node.nodeId} className="text-xs border rounded p-2 bg-gray-50">

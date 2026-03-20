@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, buildUrl } from '@shared/routes';
-import { type Execution } from '@shared/schema';
+import { type ExecutionDetail } from '@shared/schema';
 
 export function useExecutions(workflowId?: number) {
     return useQuery({
@@ -32,8 +32,9 @@ export function useExecution(id: number) {
         enabled: !isNaN(id),
         // Poll for status if running
         refetchInterval: (query) => {
-            const data = query.state.data as Execution | undefined;
-            return data?.status === 'running' || data?.status === 'pending' ? 1000 : false;
+            const data = query.state.data as ExecutionDetail | undefined;
+            const status = data?.execution.status;
+            return status === 'running' || status === 'pending' ? 1000 : false;
         },
     });
 }

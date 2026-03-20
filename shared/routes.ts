@@ -5,19 +5,45 @@ import {
     insertCredentialSchema,
     workflows,
     executions,
+    executionNodes,
     credentials,
 } from './schema';
 
-// Define execution with name schema
-const executionWithNameSchema = z.object({
+// Execution list item (for /api/executions)
+const executionListItemSchema = z.object({
     id: z.number(),
     workflowId: z.number(),
     status: z.string(),
     startedAt: z.string().nullable(),
     finishedAt: z.string().nullable(),
-    data: z.any().nullable(),
     error: z.string().nullable(),
     name: z.string().nullable(),
+});
+
+// Detailed execution with per-node logs (for /api/executions/:id)
+const executionSchema = z.object({
+    id: z.number(),
+    workflowId: z.number(),
+    status: z.string(),
+    startedAt: z.string().nullable(),
+    finishedAt: z.string().nullable(),
+    error: z.string().nullable(),
+});
+
+const executionNodeSchema = z.object({
+    id: z.number(),
+    executionId: z.number(),
+    nodeId: z.string(),
+    status: z.string(),
+    output: z.any().nullable(),
+    error: z.string().nullable(),
+    startedAt: z.string().nullable(),
+    finishedAt: z.string().nullable(),
+});
+
+const executionDetailSchema = z.object({
+    execution: executionSchema,
+    nodes: z.array(executionNodeSchema),
 });
 
 // SHARED ERROR SCHEMAS
@@ -98,14 +124,14 @@ export const api = {
                 })
                 .optional(),
             responses: {
-                200: z.array(executionWithNameSchema),
+                200: z.array(executionListItemSchema),
             },
         },
         get: {
             method: 'GET' as const,
             path: '/api/executions/:id' as const,
             responses: {
-                200: executionWithNameSchema,
+                200: executionDetailSchema,
                 404: errorSchemas.notFound,
             },
         },

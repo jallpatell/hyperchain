@@ -57,7 +57,7 @@ app.use((req, res, next) => {
 
         if (path.startsWith('/api')) {
             let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-
+            
             if (capturedJsonResponse) {
                 logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
             }
@@ -95,10 +95,14 @@ app.use((req, res, next) => {
         await setupVite(httpServer, app);
     }
 
-    // Starter Server. [ Windows Safe, IPv4 Safe ]
+    // Starter Server. [ Remote Access Enabled ]
     const port = parseInt(process.env.PORT || '5000', 10);
+    const host = process.env.HOST || '127.0.0.1';
 
-    httpServer.listen(port, '127.0.0.1', () => {
-        log(`Server running at http://127.0.0.1:${port}`);
+    httpServer.listen(port, host, () => {
+        log(`Server running at http://${host}:${port}`);
+        if (host === '0.0.0.0') {
+            log(`Accessible from remote machines at http://172.16.1.123:${port}`);
+        }
     });
 })();

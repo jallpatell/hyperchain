@@ -1,4 +1,4 @@
-import type { Workflow, WorkflowNode, WorkflowEdge, InsertExecutionNode } from '@shared/schema';
+import type { Workflow, WorkflowNode, WorkflowEdge } from '@shared/schema';
 import { storage } from './storage';
 import { executeNode } from './node-executors';
 
@@ -115,29 +115,29 @@ function getParents(edges: WorkflowEdge[], targetId: string): string[] {
     return edges.filter((e) => e.target === targetId).map((e) => e.source);
 }
 
-// Helper function to create or update execution node in database
-async function updateExecutionNodeInDB(
-    executionId: number, 
-    nodeId: string, 
-    status: NodeStatus, 
-    output?: any, 
-    error?: string
+// Helper function to create or update execution node in database.
+// This persists per-node logs so that the /executions detail view can show
+// what happened for each node even after the live SSE stream has finished.
+async function upsertExecutionNode(
+    executionId: number,
+    nodeId: string,
+    status: NodeStatus,
+    options: { output?: any; error?: string; setFinishedAt?: boolean } = {},
 ): Promise<void> {
+    const { output, error, setFinishedAt } = options;
+
     try {
-        // Check if node already exists
         const existingNodes = await storage.getExecutionNodes(executionId);
-        const existingNode = existingNodes.find(n => n.nodeId === nodeId);
-        
+        const existingNode = existingNodes.find((n) => n.nodeId === nodeId);
+
         if (existingNode) {
-            // Update existing node
             await storage.updateExecutionNode(existingNode.id, {
                 status,
                 output,
                 error,
-                finishedAt: new Date(),
+                ...(setFinishedAt ? { finishedAt: new Date() } : {}),
             });
         } else {
-            // Create new node
             await storage.createExecutionNode({
                 executionId,
                 nodeId,
@@ -147,7 +147,7 @@ async function updateExecutionNodeInDB(
             });
         }
     } catch (err) {
-        console.error(`[executor] Failed to update execution node ${nodeId}:`, err);
+        console.error(`[executor] Failed to persist execution node ${nodeId}:`, err);
     }
 }
 
@@ -210,18 +210,21 @@ export async function executeWorkflow(workflow: Workflow, executionId: number, t
             emit(progress);
         };
 
-        // Mark all downstream nodes as skipped recursively
-        const markDownstreamSkipped = (nodeId: string): void => {
+        // Mark all downstream nodes as skipped recursively and persist to DB
+        const markDownstreamSkipped = async (nodeId: string): Promise<void> => {
             const neighbors = adj[nodeId] || [];
-            neighbors.forEach((neighborId) => {
+            for (const neighborId of neighbors) {
                 if (nodeProgress[neighborId].status === 'pending') {
                     nodeProgress[neighborId] = {
                         nodeId: neighborId,
                         status: 'skipped',
                     };
-                    markDownstreamSkipped(neighborId);
+                    await upsertExecutionNode(executionId, neighborId, 'skipped', {
+                        setFinishedAt: true,
+                    });
+                    await markDownstreamSkipped(neighborId);
                 }
-            });
+            }
         };
 
         // Update execution status
@@ -258,6 +261,7 @@ export async function executeWorkflow(workflow: Workflow, executionId: number, t
                 status: 'running',
                 startedAt: new Date().toISOString(),
             };
+            await upsertExecutionNode(executionId, currentNode.id, 'running');
             broadcastProgress('running');
 
             try {
@@ -291,6 +295,10 @@ export async function executeWorkflow(workflow: Workflow, executionId: number, t
                     startedAt: nodeProgress[currentNode.id].startedAt,
                     finishedAt: new Date().toISOString(),
                 };
+                await upsertExecutionNode(executionId, currentNode.id, 'success', {
+                    output,
+                    setFinishedAt: true,
+                });
             } catch (err) {
                 // Mark as error
                 const errorMessage = err instanceof Error ? err.message : String(err);
@@ -302,8 +310,13 @@ export async function executeWorkflow(workflow: Workflow, executionId: number, t
                     finishedAt: new Date().toISOString(),
                 };
 
+                await upsertExecutionNode(executionId, currentNode.id, 'error', {
+                    error: errorMessage,
+                    setFinishedAt: true,
+                });
+
                 // Mark all downstream nodes as skipped
-                markDownstreamSkipped(currentNode.id);
+                await markDownstreamSkipped(currentNode.id);
 
                 // Update execution and broadcast failure
                 broadcastProgress('failed', errorMessage);

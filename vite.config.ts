@@ -31,8 +31,8 @@ export default defineConfig({
     },
 
     server: {
-        host: '0.0.0.0', // bind to this address
-        port: 8000, // run vite on port 5000
+        host: process.env.HOST || '0.0.0.0', // bind to this address
+        port: parseInt(process.env.VITE_PORT || '8000'), // run vite on port 8000
         strictPort: true, // fail if port already used
         fs: {
             strict: true,

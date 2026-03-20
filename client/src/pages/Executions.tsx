@@ -77,6 +77,7 @@ export default function Executions() {
                                     <TableHead>Workflow ID</TableHead>
                                     <TableHead>Started At</TableHead>
                                     <TableHead>Duration</TableHead>
+                                    <TableHead>Error</TableHead>
                                     <TableHead className="text-right">Action</TableHead>
                                     <TableHead> Workflow Name</TableHead>
                                 </TableRow>
@@ -126,6 +127,15 @@ export default function Executions() {
                                             </TableCell>
                                             <TableCell className="text-sm font-mono text-blue-600">
                                                 {formatDuration(execution.startedAt, execution.finishedAt)}
+                                            </TableCell>
+                                            <TableCell className="text-xs max-w-xs">
+                                                {execution.error ? (
+                                                    <span className="text-red-600 line-clamp-2">
+                                                        {execution.error}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-muted-foreground">—</span>
+                                                )}
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <Link href={`/executions/viewdetails/${execution.id}`}>

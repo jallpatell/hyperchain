@@ -183,6 +183,17 @@ export default function ExecutionDetails() {
           </CardHeader>
 
           <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
+            {execution.error && (
+              <div className="col-span-full">
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm flex gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5" />
+                  <div className="font-mono whitespace-pre-wrap break-words">
+                    {execution.error}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div>
               <p className="text-muted-foreground">Started</p>
 
