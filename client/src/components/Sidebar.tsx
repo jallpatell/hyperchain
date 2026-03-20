@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'wouter';
 import { Workflow, Activity, Key, Settings, Plus, Layout, Container } from 'lucide-react';
+import { UserButton } from '@clerk/react';
 import { Button } from './ui/button';
 
 export function Sidebar() {
@@ -54,13 +55,19 @@ export function Sidebar() {
             </div>
 
             <div className="p-4 border-t border-border">
-                <Link href="/">
-                    <div className="flex items-center gap-3 px-4 py-2 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted transition-colors">
-                        <div className="flex flex-col">
-                            <span className="text-sm font-medium">Authentication Context</span>
-                        </div>
+                <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-muted/50">
+                    <UserButton 
+                        appearance={{
+                            elements: {
+                                avatarBox: "w-9 h-9"
+                            }
+                        }}
+                    />
+                    <div className="flex flex-col flex-1 min-w-0">
+                        <span className="text-sm font-medium truncate">Account</span>
+                        <span className="text-xs text-muted-foreground">Manage profile</span>
                     </div>
-                </Link>
+                </div>
             </div>
         </div>
     );

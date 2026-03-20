@@ -1,4 +1,4 @@
- {
+{
   "name": "rest-express",
   "version": "1.0.0",
   "type": "module",
@@ -15,8 +15,8 @@
     "db:generate": "drizzle-kit generate",
     "format": "prettier --write ."
   },
-  
   "dependencies": {
+    "@clerk/react": "^6.1.1",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@radix-ui/react-accordion": "^1.2.4",

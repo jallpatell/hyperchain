@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SignInButton, SignUpButton, UserButton, useAuth } from "@clerk/react";
 import { CircuitBackground } from "@/components/CircuitBackground";
 import { FaRegCaretSquareRight } from "react-icons/fa";
 import workflowCard from "/workflow-card.png";
@@ -343,6 +344,7 @@ export default function Landing() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const scrollProgress = useScrollProgress();
+  const { isSignedIn } = useAuth();
   useScrollReveal();
 
   useEffect(() => {
@@ -379,21 +381,40 @@ export default function Landing() {
             ))}
           </div>
           <div className="hidden md:flex items-center gap-2">
-            <a
-              href="#"
-              className="px-4 py-1.5 text-sm font-medium text-[#555] hover:text-[#1a1d23] rounded-lg hover:bg-[#F1F2F4] transition-colors no-underline"
-            >
-              Sign in
-            </a>
-            <a
-              href="/workflows"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 text-sm font-semibold text-white rounded-xl transition-all hover:opacity-90 no-underline flex items-center gap-2"
-              style={{ background: "#EF486F" }}
-            >
-              Go to Dashboard <div className="hover:translate-x-2">  <FaRegCaretSquareRight /> </div>
-            </a>
+            {isSignedIn ? (
+              <>
+                <a
+                  href="/workflows"
+                  className="px-4 py-2 text-sm font-semibold text-white rounded-xl transition-all hover:opacity-90 no-underline flex items-center gap-2"
+                  style={{ background: "#EF486F" }}
+                >
+                  Go to Dashboard <FaRegCaretSquareRight />
+                </a>
+                <UserButton 
+                  appearance={{
+                    elements: {
+                      avatarBox: "w-8 h-8"
+                    }
+                  }}
+                />
+              </>
+            ) : (
+              <>
+                <SignInButton mode="modal">
+                  <button className="px-4 py-1.5 text-sm font-medium text-[#555] hover:text-[#1a1d23] rounded-lg hover:bg-[#F1F2F4] transition-colors">
+                    Sign in
+                  </button>
+                </SignInButton>
+                <SignUpButton mode="modal">
+                  <button
+                    className="px-4 py-2 text-sm font-semibold text-white rounded-xl transition-all hover:opacity-90 flex items-center gap-2"
+                    style={{ background: "#EF486F" }}
+                  >
+                    Get Started <FaRegCaretSquareRight />
+                  </button>
+                </SignUpButton>
+              </>
+            )}
           </div>
           <button
             className="md:hidden p-1.5 rounded-lg hover:bg-[#F1F2F4] transition-colors"
@@ -480,23 +501,38 @@ export default function Landing() {
           </p>
 
           <div className="delay-3 flex flex-col sm:flex-row gap-4 justify-center mb-14">
-            <a
-              href="#"
-              className="px-8 py-4 text-base font-semibold text-white rounded-xl hover:opacity-90 hover:scale-[1.02] transition-all no-underline inline-block shadow-lg"
-              style={{
-                background: "#EF486F",
-                boxShadow: "0 8px 40px rgba(239,72,111,0.3)",
-              }}
-            >
-              Start building for free
-            </a>
-            <a
-              href="#"
-              className="px-8 py-4 text-base font-semibold text-[#1a1d23] rounded-xl border border-[#e5e7eb] hover:bg-[#F1F2F4] transition-all no-underline inline-flex items-center gap-2 bg-white"
-            >
-              Watch demo <FaRegCaretSquareRight />
-            </a>
-
+            {isSignedIn ? (
+              <a
+                href="/workflows"
+                className="px-8 py-4 text-base font-semibold text-white rounded-xl hover:opacity-90 hover:scale-[1.02] transition-all no-underline inline-block shadow-lg"
+                style={{
+                  background: "#EF486F",
+                  boxShadow: "0 8px 40px rgba(239,72,111,0.3)",
+                }}
+              >
+                Go to Dashboard
+              </a>
+            ) : (
+              <>
+                <SignUpButton mode="modal">
+                  <button
+                    className="px-8 py-4 text-base font-semibold text-white rounded-xl hover:opacity-90 hover:scale-[1.02] transition-all inline-block shadow-lg"
+                    style={{
+                      background: "#EF486F",
+                      boxShadow: "0 8px 40px rgba(239,72,111,0.3)",
+                    }}
+                  >
+                    Start building for free
+                  </button>
+                </SignUpButton>
+                <a
+                  href="#"
+                  className="px-8 py-4 text-base font-semibold text-[#1a1d23] rounded-xl border border-[#e5e7eb] hover:bg-[#F1F2F4] transition-all no-underline inline-flex items-center gap-2 bg-white"
+                >
+                  Watch demo <FaRegCaretSquareRight />
+                </a>
+              </>
+            )}
           </div>
           {/* <p className="delay-4 font-mono-tech text-xs text-[#9ca3af] tracking-wide">
             NO CREDIT CARD · FREE UP TO 1,000 TASKS/MONTH · SETUP IN 2 MIN
