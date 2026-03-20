@@ -100,13 +100,18 @@ export default function ExecutionDetails() {
         : JSON.stringify(content, null, 2);
 
     return (
-      <div className="bg-muted rounded-lg border overflow-hidden">
-        <div className="px-3 py-2 text-xs font-medium text-muted-foreground border-b">
-          Log Output
+      <div className="bg-muted/50 rounded-lg border overflow-hidden">
+        <div className="px-4 py-2 bg-muted border-b flex items-center justify-between">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Output
+          </span>
+          <Badge variant="secondary" className="text-xs">
+            {typeof content === "string" ? "Text" : "JSON"}
+          </Badge>
         </div>
 
-        <div className="max-h-80 overflow-auto">
-          <pre className="text-sm font-mono p-4 whitespace-pre-wrap break-words leading-relaxed">
+        <div className="max-h-96 overflow-auto">
+          <pre className="text-xs font-mono p-4 whitespace-pre-wrap break-words leading-relaxed">
             {formatted}
           </pre>
         </div>
@@ -143,149 +148,172 @@ export default function ExecutionDetails() {
     <div className="flex h-screen bg-background">
       <Sidebar />
 
-      <div className="flex-1 overflow-y-auto p-8 space-y-8">
-        {/* Header */}
-
-        <div className="flex items-center justify-between">
-          <div>
-            <Link href="/executions">
-              <Button variant="ghost" size="sm" className="mb-3 gap-2">
-                <ArrowLeft className="w-4 h-4" />
-                Back to Executions
-              </Button>
-            </Link>
-
-            <h1 className="text-3xl font-bold">Execution Details</h1>
-
-            <p className="text-muted-foreground">
-              Logs and results for execution #{execution.id}
-            </p>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header with back button and status */}
+        <div className="border-b border-border bg-card px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Link href="/executions">
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <ArrowLeft className="w-4 h-4" />
+                  Back
+                </Button>
+              </Link>
+              <div className="h-6 w-px bg-border" />
+              <div>
+                <h1 className="text-xl font-bold">Execution #{execution.id}</h1>
+                <p className="text-sm text-muted-foreground">
+                  {execution.name || `Workflow ${execution.workflowId}`}
+                </p>
+              </div>
+            </div>
+            {getStatusBadge(execution.status)}
           </div>
-
-          {getStatusBadge(execution.status)}
         </div>
 
-        {/* Execution Overview */}
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div className="flex items-center gap-3">
-              {getStatusIcon(execution.status)}
-
-              <div>
-                <CardTitle>Execution #{execution.id}</CardTitle>
-
-                <CardDescription>
-                  Workflow {execution.workflowId}
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-
-          <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
-            {execution.error && (
-              <div className="col-span-full">
-                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm flex gap-2">
-                  <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5" />
-                  <div className="font-mono whitespace-pre-wrap break-words">
-                    {execution.error}
-                  </div>
+        {/* Main scrollable content */}
+        <div className="flex-1 overflow-y-auto p-8 space-y-6">
+          {/* Execution Overview Card */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                {getStatusIcon(execution.status)}
+                <div>
+                  <CardTitle>Execution Overview</CardTitle>
+                  <CardDescription>
+                    Workflow ID: {execution.workflowId}
+                  </CardDescription>
                 </div>
               </div>
-            )}
+            </CardHeader>
 
-            <div>
-              <p className="text-muted-foreground">Started</p>
-
-              <p className="font-medium">
-                {execution.startedAt
-                  ? format(new Date(execution.startedAt), "MMM d HH:mm:ss")
-                  : "-"}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-muted-foreground">Finished</p>
-
-              <p className="font-medium">
-                {execution.finishedAt
-                  ? format(new Date(execution.finishedAt), "MMM d HH:mm:ss")
-                  : "-"}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-muted-foreground">Duration</p>
-
-              <p className="font-mono font-medium">
-                {formatDuration(execution.startedAt, execution.finishedAt)}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-muted-foreground">Nodes</p>
-
-              <p className="font-medium">{nodes.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Node Logs */}
-
-        <div className="space-y-6">
-          <h2 className="text-xl font-semibold">Node Execution Logs</h2>
-
-          {nodes.map((node: any, index: number) => (
-            <Card key={node.id}>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-md bg-muted flex items-center justify-center">
-                    {getNodeIcon(node.nodeId)}
-                  </div>
-
-                  <div>
-                    <CardTitle className="text-lg">
-                      {node.nodeId}
-                    </CardTitle>
-
-                    <CardDescription>
-                      Node #{index + 1}
-                    </CardDescription>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  {getStatusBadge(node.status)}
-
-                  {node.finishedAt && (
-                    <span className="text-xs font-mono text-muted-foreground">
-                      {formatDuration(node.startedAt, node.finishedAt)}
-                    </span>
-                  )}
-                </div>
-              </CardHeader>
-
-              <CardContent className="space-y-4">
-                {/* Error */}
-
-                {node.error && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm">
-                    <div className="flex gap-2">
-                      <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5" />
-
-                      <div className="font-mono whitespace-pre-wrap break-words">
-                        {node.error}
-                      </div>
+            <CardContent className="space-y-4">
+              {execution.error && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex gap-3">
+                    <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm text-red-900 mb-1">Execution Failed</p>
+                      <p className="font-mono text-sm text-red-700 whitespace-pre-wrap break-words">
+                        {execution.error}
+                      </p>
                     </div>
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* Logs */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Started</p>
+                  <p className="font-medium text-sm">
+                    {execution.startedAt
+                      ? format(new Date(execution.startedAt), "MMM d, HH:mm:ss")
+                      : "-"}
+                  </p>
+                </div>
 
-                {node.output && <LogBlock content={node.output} />}
-              </CardContent>
-            </Card>
-          ))}
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Finished</p>
+                  <p className="font-medium text-sm">
+                    {execution.finishedAt
+                      ? format(new Date(execution.finishedAt), "MMM d, HH:mm:ss")
+                      : "-"}
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Duration</p>
+                  <Badge variant="secondary" className="font-mono w-fit">
+                    {formatDuration(execution.startedAt, execution.finishedAt)}
+                  </Badge>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Total Nodes</p>
+                  <p className="font-semibold text-sm">{nodes.length}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Node Execution Logs */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Node Execution Logs</h2>
+              <Badge variant="outline" className="font-mono">
+                {nodes.length} {nodes.length === 1 ? 'node' : 'nodes'}
+              </Badge>
+            </div>
+
+            {nodes.length === 0 ? (
+              <Card>
+                <CardContent className="py-12">
+                  <div className="flex flex-col items-center gap-3 text-center">
+                    <Clock className="w-12 h-12 text-muted-foreground/50" />
+                    <div>
+                      <p className="font-semibold">No node logs available</p>
+                      <p className="text-sm text-muted-foreground">
+                        This execution has no recorded node activity.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              nodes.map((node: any, index: number) => (
+                <Card key={node.id} className="overflow-hidden">
+                  <CardHeader className="bg-muted/30">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-background border border-border flex items-center justify-center">
+                          {getNodeIcon(node.nodeId)}
+                        </div>
+                        <div>
+                          <CardTitle className="text-base">
+                            {node.nodeId}
+                          </CardTitle>
+                          <CardDescription className="text-xs">
+                            Step {index + 1} of {nodes.length}
+                          </CardDescription>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        {node.finishedAt && (
+                          <Badge variant="secondary" className="font-mono text-xs">
+                            {formatDuration(node.startedAt, node.finishedAt)}
+                          </Badge>
+                        )}
+                        {getStatusBadge(node.status)}
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="pt-4 space-y-4">
+                    {node.error && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <div className="flex gap-2">
+                          <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1">
+                            <p className="font-semibold text-xs text-red-900 mb-1">Node Error</p>
+                            <p className="font-mono text-xs text-red-700 whitespace-pre-wrap break-words">
+                              {node.error}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {node.output && <LogBlock content={node.output} />}
+
+                    {!node.output && !node.error && (
+                      <p className="text-sm text-muted-foreground italic">No output recorded</p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
         </div>
       </div>
     </div>

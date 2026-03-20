@@ -6,7 +6,7 @@ export function Sidebar() {
     const [location] = useLocation();
 
     const navItems = [
-        { icon: Workflow, label: 'Workflows', href: '/' },
+        { icon: Workflow, label: 'Workflows', href: '/workflows' },
         { icon: Activity, label: 'Executions', href: '/executions' },
         { icon: Container, label: 'Templates', href: '/templates' },
         { icon: Key, label: 'Credentials', href: '/credentials' },
