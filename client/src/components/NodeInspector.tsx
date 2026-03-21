@@ -185,7 +185,7 @@ export function NodeInspector({ node, isOpen, onClose, onUpdate, onDelete }: Nod
                                     value={formData.code || ''}
                                     onChange={(e) => handleChange('code', e.target.value)}
                                 />
-                                <p className="text-xs text-muted-foreground">Available variables: items, $node, $env</p>
+                                <p className="text-xs text-muted-foreground">Available variables: $inputs, $prev, $parents, $utils, fetch</p>
                             </div>
                         </div>
                     )}

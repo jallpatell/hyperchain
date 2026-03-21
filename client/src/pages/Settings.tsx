@@ -46,6 +46,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { authFetch } from '@/lib/auth-fetch';
 
 interface ApiKey {
   id: number;
@@ -89,8 +90,8 @@ export default function Settings() {
     try {
       setLoading(true);
       const [keysRes, settingsRes] = await Promise.all([
-        fetch('/api/settings/api-keys'),
-        fetch('/api/settings'),
+        authFetch('/api/settings/api-keys', {}, user?.id),
+        authFetch('/api/settings', {}, user?.id),
       ]);
 
       if (keysRes.ok) {
@@ -125,11 +126,11 @@ export default function Settings() {
 
     try {
       setCreatingKey(true);
-      const res = await fetch('/api/settings/api-keys', {
+      const res = await authFetch('/api/settings/api-keys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newKeyName }),
-      });
+      }, user?.id);
 
       if (res.ok) {
         const data = await res.json();
@@ -157,9 +158,9 @@ export default function Settings() {
   const deleteApiKey = async (id: number) => {
     try {
       setDeletingKeyId(id);
-      const res = await fetch(`/api/settings/api-keys/${id}`, {
+      const res = await authFetch(`/api/settings/api-keys/${id}`, {
         method: 'DELETE',
-      });
+      }, user?.id);
 
       if (res.ok) {
         setApiKeys(apiKeys.filter((k) => k.id !== id));
@@ -193,9 +194,9 @@ export default function Settings() {
   const regenerateWebhookSecret = async () => {
     try {
       setRegeneratingSecret(true);
-      const res = await fetch('/api/settings/webhook-secret', {
+      const res = await authFetch('/api/settings/webhook-secret', {
         method: 'POST',
-      });
+      }, user?.id);
 
       if (res.ok) {
         const data = await res.json();
@@ -220,11 +221,11 @@ export default function Settings() {
 
   const updateSettings = async (updates: Partial<UserSettings>) => {
     try {
-      const res = await fetch('/api/settings', {
+      const res = await authFetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
-      });
+      }, user?.id);
 
       if (res.ok) {
         const data = await res.json();

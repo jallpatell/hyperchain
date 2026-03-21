@@ -5,20 +5,56 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import { executeWorkflow, registerSSEListener, unregisterSSEListener } from "./execution";
 import crypto from "crypto";
+import { workflowNodesSchema } from "@shared/schema";
+import { logError } from "./logger";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  const webhookReplayCache = new Map<string, number>();
+  const WEBHOOK_REPLAY_WINDOW_MS = 5 * 60 * 1000;
+
+  const getRequiredUserId = (req: any, res: any): string | null => {
+    const userId = req.auth?.userId || req.headers['x-user-id'];
+    if (!userId || typeof userId !== 'string' || !userId.trim()) {
+      res.status(401).json({ message: 'Authentication required' });
+      return null;
+    }
+    return userId;
+  };
+
+  const encodeOAuthState = (payload: { userId: string; service: string; ts: number }): string => {
+    const stateSecret = process.env.OAUTH_STATE_SECRET || process.env.ENCRYPTION_KEY || 'dev-oauth-state-secret';
+    const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    const sig = crypto.createHmac('sha256', stateSecret).update(body).digest('hex');
+    return `${body}.${sig}`;
+  };
+
+  const decodeOAuthState = (state: string): { userId: string; service: string; ts: number } | null => {
+    const stateSecret = process.env.OAUTH_STATE_SECRET || process.env.ENCRYPTION_KEY || 'dev-oauth-state-secret';
+    const [body, sig] = state.split('.');
+    if (!body || !sig) return null;
+    const expected = crypto.createHmac('sha256', stateSecret).update(body).digest('hex');
+    if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+    if (!payload?.userId || !payload?.service || !payload?.ts) return null;
+    if (Date.now() - payload.ts > 10 * 60 * 1000) return null;
+    return payload;
+  };
 
   // --- Workflows ---
   app.get(api.workflows.list.path, async (req, res) => {
-    const workflows = await storage.getWorkflows();
+    const userId = getRequiredUserId(req, res);
+    if (!userId) return;
+    const workflows = await storage.getWorkflows(userId);
     res.json(workflows);
   });
 
   app.get(api.workflows.get.path, async (req, res) => {
-    const workflow = await storage.getWorkflow(Number(req.params.id));
+    const userId = getRequiredUserId(req, res);
+    if (!userId) return;
+    const workflow = await storage.getWorkflow(Number(req.params.id), userId);
     if (!workflow) {
       return res.status(404).json({ message: 'Workflow not found' });
     }
@@ -28,7 +64,12 @@ export async function registerRoutes(
   app.post(api.workflows.create.path, async (req, res) => {
     try {
       const input = api.workflows.create.input.parse(req.body);
-      const workflow = await storage.createWorkflow(input);
+      if (input.nodes) {
+        workflowNodesSchema.parse(input.nodes);
+      }
+      const userId = getRequiredUserId(req, res);
+      if (!userId) return;
+      const workflow = await storage.createWorkflow({ ...input, userId });
       res.status(201).json(workflow);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -44,7 +85,12 @@ export async function registerRoutes(
   app.put(api.workflows.update.path, async (req, res) => {
     try {
       const input = api.workflows.update.input.parse(req.body);
-      const workflow = await storage.updateWorkflow(Number(req.params.id), input);
+      if (input.nodes) {
+        workflowNodesSchema.parse(input.nodes);
+      }
+      const userId = getRequiredUserId(req, res);
+      if (!userId) return;
+      const workflow = await storage.updateWorkflow(Number(req.params.id), userId, input);
       if (!workflow) return res.status(404).json({ message: 'Workflow not found' });
       res.json(workflow);
     } catch (err) {
@@ -59,13 +105,17 @@ export async function registerRoutes(
   });
 
   app.delete(api.workflows.delete.path, async (req, res) => {
-    await storage.deleteWorkflow(Number(req.params.id));
+    const userId = getRequiredUserId(req, res);
+    if (!userId) return;
+    await storage.deleteWorkflow(Number(req.params.id), userId);
     res.status(204).send();
   });
 
   app.post(api.workflows.execute.path, async (req, res) => {
     const workflowId = Number(req.params.id);
-    const workflow = await storage.getWorkflow(workflowId);
+    const userId = getRequiredUserId(req, res);
+    if (!userId) return;
+    const workflow = await storage.getWorkflow(workflowId, userId);
     if (!workflow) return res.status(404).json({ message: 'Workflow not found' });
 
     // Extract trigger data from request body (optional)
@@ -76,8 +126,16 @@ export async function registerRoutes(
       status: 'pending',
     });
 
+    const settings = await storage.getUserSettings(userId);
+    const runtimeOptions = {
+      timeoutSeconds: settings?.defaultTimeout ?? 30,
+      retryAttempts: settings?.defaultRetryAttempts ?? 0,
+      retryDelayMs: settings?.defaultRetryDelay ?? 1000,
+      userId,
+    };
+
     // Run in background with trigger data
-    executeWorkflow(workflow, execution.id, triggerData).catch(console.error);
+    executeWorkflow(workflow, execution.id, triggerData, runtimeOptions).catch(console.error);
 
     res.json({ executionId: execution.id });
   });
@@ -85,16 +143,20 @@ export async function registerRoutes(
 
 // --- Executions ---
   app.get(api.executions.list.path, async (req, res) => {
+    const userId = getRequiredUserId(req, res);
+    if (!userId) return;
     const workflowId = req.query.workflowId ? Number(req.query.workflowId) : undefined;
     const cursor = req.query.cursor ? Number(req.query.cursor) : undefined;
     const limit = req.query.limit ? Math.min(Number(req.query.limit), 100) : 50; // Safety limit
     
-    const executions = await storage.getExecutions(workflowId, cursor, limit);
+    const executions = await storage.getExecutions(userId, workflowId, cursor, limit);
     res.json(executions);
   });
 
   app.get(api.executions.get.path, async (req, res) => {
-    const executionDetail = await storage.getExecutionDetail(Number(req.params.id));
+    const userId = getRequiredUserId(req, res);
+    if (!userId) return;
+    const executionDetail = await storage.getExecutionDetail(Number(req.params.id), userId);
     if (!executionDetail) return res.status(404).json({ message: 'Execution not found' });
     res.json(executionDetail);
   });
@@ -134,7 +196,9 @@ export async function registerRoutes(
 
   // --- Credentials ---
   app.get(api.credentials.list.path, async (req, res) => {
-    const credentials = await storage.getCredentials();
+    const userId = getRequiredUserId(req, res);
+    if (!userId) return;
+    const credentials = await storage.getCredentials(userId);
     // Don't send encrypted data to frontend
     res.json(credentials.map(c => ({
       id: c.id,
@@ -148,12 +212,15 @@ export async function registerRoutes(
     try {
       const input = api.credentials.create.input.parse(req.body);
       const { encrypt } = await import("./crypto");
+      const userId = getRequiredUserId(req, res);
+      if (!userId) return;
       
       // Encrypt sensitive data before storing
       const encryptedData = encrypt(JSON.parse(input.data as any));
       
       const credential = await storage.createCredential({
         ...input,
+        userId,
         data: encryptedData,
       });
       
@@ -175,13 +242,15 @@ export async function registerRoutes(
   });
 
   app.delete(api.credentials.delete.path, async (req, res) => {
-    await storage.deleteCredential(Number(req.params.id));
+    const userId = getRequiredUserId(req, res);
+    if (!userId) return;
+    await storage.deleteCredential(Number(req.params.id), userId);
     res.status(204).send();
   });
 
   // helper that prefers a 'gmail-oauth-config' credential but falls back to env vars
-  async function loadGmailOAuthConfig() {
-    const creds = await storage.getCredentials();
+  async function loadGmailOAuthConfig(userId: string) {
+    const creds = await storage.getCredentials(userId);
     const cfgCred = creds.find((c) => c.type === "gmail-oauth-config");
     if (cfgCred && cfgCred.data) {
       const { decrypt } = await import("./crypto");
@@ -227,15 +296,16 @@ export async function registerRoutes(
 
   // --- OAuth Routes ---
   app.get("/api/oauth/gmail/auth-url", async (req, res) => {
-    const cfg = await loadGmailOAuthConfig();
+    const userId = getRequiredUserId(req, res);
+    if (!userId) return;
+    const cfg = await loadGmailOAuthConfig(userId);
     if (!cfg) {
       return res.status(400).json({
         message: "Gmail OAuth is not configured. Add a Gmail OAuth App credential or set GMAIL_CLIENT_ID/GMAIL_CLIENT_SECRET env vars.",
       });
     }
     const { getGmailAuthUrl } = await import("./oauth");
-    const { generateToken } = await import("./crypto");
-    const state = generateToken();
+    const state = encodeOAuthState({ userId, service: 'gmail', ts: Date.now() });
     const authUrl = getGmailAuthUrl(cfg, state);
     res.json({ authUrl, state });
   });
@@ -243,11 +313,13 @@ export async function registerRoutes(
   app.post("/api/oauth/gmail/callback", async (req, res) => {
     try {
       const { code } = req.body;
+      const userId = getRequiredUserId(req, res);
+      if (!userId) return;
       if (!code) {
         return res.status(400).json({ message: "Missing authorization code" });
       }
 
-      const cfg = await loadGmailOAuthConfig();
+      const cfg = await loadGmailOAuthConfig(userId);
       if (!cfg) {
         return res.status(400).json({
           message: "Gmail OAuth is not configured",
@@ -275,6 +347,7 @@ export async function registerRoutes(
 
       // Store credential
       const credential = await storage.createCredential({
+        userId,
         name: `Gmail - ${userInfo.email}`,
         type: "gmail-oauth",
         data: encrypt({
@@ -325,8 +398,12 @@ export async function registerRoutes(
           </html>
         `);
       }
+      const parsedState = decodeOAuthState(String(state || ''));
+      if (!parsedState || parsedState.service !== 'gmail') {
+        return res.status(400).send(`<html><body><h1>Invalid OAuth state</h1></body></html>`);
+      }
 
-      const cfg = await loadGmailOAuthConfig();
+      const cfg = await loadGmailOAuthConfig(parsedState.userId);
       if (!cfg) {
         return res.status(400).send(`
           <html>
@@ -359,6 +436,7 @@ export async function registerRoutes(
 
       // Store credential
       const credential = await storage.createCredential({
+        userId: parsedState.userId,
         name: `Gmail - ${userInfo.email}`,
         type: "gmail-oauth",
         data: encrypt({
@@ -390,18 +468,22 @@ export async function registerRoutes(
 
   // --- Google Drive OAuth ---
   app.get("/api/oauth/google/drive/auth-url", async (req, res) => {
+    const userId = getRequiredUserId(req, res);
+    if (!userId) return;
     const cfg = await loadGoogleOAuthConfig('drive');
     if (!cfg) return res.status(400).json({ message: "Google OAuth not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET." });
     const { getGoogleAuthUrl } = await import("./oauth");
-    const { generateToken } = await import("./crypto");
-    res.json({ authUrl: getGoogleAuthUrl(cfg, generateToken(), 'drive') });
+    const state = encodeOAuthState({ userId, service: 'drive', ts: Date.now() });
+    res.json({ authUrl: getGoogleAuthUrl(cfg, state, 'drive') });
   });
 
   app.get("/api/oauth/google/drive/callback", async (req, res) => {
     try {
-      const { code, error } = req.query;
+      const { code, error, state } = req.query;
       if (error) return res.redirect(`/credentials?error=${error}`);
       if (!code) return res.redirect('/credentials?error=no_code');
+      const parsedState = decodeOAuthState(String(state || ''));
+      if (!parsedState || parsedState.service !== 'drive') return res.redirect('/credentials?error=invalid_state');
       const cfg = await loadGoogleOAuthConfig('drive');
       if (!cfg) return res.redirect('/credentials?error=not_configured');
       const { exchangeGoogleServiceCode, getGoogleUserEmail } = await import("./oauth");
@@ -409,6 +491,7 @@ export async function registerRoutes(
       const tokens = await exchangeGoogleServiceCode(String(code), cfg);
       const email = await getGoogleUserEmail(tokens.accessToken);
       await storage.createCredential({
+        userId: parsedState.userId,
         name: `Google Drive - ${email}`,
         type: 'google-drive',
         data: encrypt({ email, tokens, clientId: cfg.clientId, clientSecret: cfg.clientSecret }),
@@ -422,18 +505,22 @@ export async function registerRoutes(
 
   // --- Google Sheets OAuth ---
   app.get("/api/oauth/google/sheets/auth-url", async (req, res) => {
+    const userId = getRequiredUserId(req, res);
+    if (!userId) return;
     const cfg = await loadGoogleOAuthConfig('sheets');
     if (!cfg) return res.status(400).json({ message: "Google OAuth not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET." });
     const { getGoogleAuthUrl } = await import("./oauth");
-    const { generateToken } = await import("./crypto");
-    res.json({ authUrl: getGoogleAuthUrl(cfg, generateToken(), 'sheets') });
+    const state = encodeOAuthState({ userId, service: 'sheets', ts: Date.now() });
+    res.json({ authUrl: getGoogleAuthUrl(cfg, state, 'sheets') });
   });
 
   app.get("/api/oauth/google/sheets/callback", async (req, res) => {
     try {
-      const { code, error } = req.query;
+      const { code, error, state } = req.query;
       if (error) return res.redirect(`/credentials?error=${error}`);
       if (!code) return res.redirect('/credentials?error=no_code');
+      const parsedState = decodeOAuthState(String(state || ''));
+      if (!parsedState || parsedState.service !== 'sheets') return res.redirect('/credentials?error=invalid_state');
       const cfg = await loadGoogleOAuthConfig('sheets');
       if (!cfg) return res.redirect('/credentials?error=not_configured');
       const { exchangeGoogleServiceCode, getGoogleUserEmail } = await import("./oauth");
@@ -441,6 +528,7 @@ export async function registerRoutes(
       const tokens = await exchangeGoogleServiceCode(String(code), cfg);
       const email = await getGoogleUserEmail(tokens.accessToken);
       await storage.createCredential({
+        userId: parsedState.userId,
         name: `Google Sheets - ${email}`,
         type: 'google-sheets',
         data: encrypt({ email, tokens, clientId: cfg.clientId, clientSecret: cfg.clientSecret }),
@@ -454,24 +542,29 @@ export async function registerRoutes(
 
   // --- Slack OAuth ---
   app.get("/api/oauth/slack/auth-url", async (req, res) => {
+    const userId = getRequiredUserId(req, res);
+    if (!userId) return;
     const cfg = await loadSlackOAuthConfig();
     if (!cfg) return res.status(400).json({ message: "Slack OAuth not configured. Set SLACK_CLIENT_ID and SLACK_CLIENT_SECRET." });
     const { getSlackAuthUrl } = await import("./oauth");
-    const { generateToken } = await import("./crypto");
-    res.json({ authUrl: getSlackAuthUrl(cfg, generateToken()) });
+    const state = encodeOAuthState({ userId, service: 'slack', ts: Date.now() });
+    res.json({ authUrl: getSlackAuthUrl(cfg, state) });
   });
 
   app.get("/api/oauth/slack/callback", async (req, res) => {
     try {
-      const { code, error } = req.query;
+      const { code, error, state } = req.query;
       if (error) return res.redirect(`/credentials?error=${error}`);
       if (!code) return res.redirect('/credentials?error=no_code');
+      const parsedState = decodeOAuthState(String(state || ''));
+      if (!parsedState || parsedState.service !== 'slack') return res.redirect('/credentials?error=invalid_state');
       const cfg = await loadSlackOAuthConfig();
       if (!cfg) return res.redirect('/credentials?error=not_configured');
       const { exchangeSlackCode } = await import("./oauth");
       const { encrypt } = await import("./crypto");
       const result = await exchangeSlackCode(String(code), cfg);
       await storage.createCredential({
+        userId: parsedState.userId,
         name: `Slack - ${result.teamName}`,
         type: 'slack',
         data: encrypt({ accessToken: result.accessToken, teamName: result.teamName, botUserId: result.botUserId }),
@@ -486,7 +579,8 @@ export async function registerRoutes(
   // --- Settings Routes ---
   app.get("/api/settings", async (req, res) => {
     try {
-      const userId = req.headers['x-user-id'] as string || 'default-user';
+      const userId = getRequiredUserId(req, res);
+      if (!userId) return;
       
       let settings = await storage.getUserSettings(userId);
       
@@ -510,7 +604,8 @@ export async function registerRoutes(
 
   app.put("/api/settings", async (req, res) => {
     try {
-      const userId = req.headers['x-user-id'] as string || 'default-user';
+      const userId = getRequiredUserId(req, res);
+      if (!userId) return;
       const updates = req.body;
       
       const settings = await storage.updateUserSettings(userId, updates);
@@ -523,7 +618,8 @@ export async function registerRoutes(
 
   app.post("/api/settings/webhook-secret", async (req, res) => {
     try {
-      const userId = req.headers['x-user-id'] as string || 'default-user';
+      const userId = getRequiredUserId(req, res);
+      if (!userId) return;
       const { generateToken } = await import("./crypto");
       
       const settings = await storage.updateUserSettings(userId, {
@@ -539,7 +635,8 @@ export async function registerRoutes(
 
   app.get("/api/settings/api-keys", async (req, res) => {
     try {
-      const userId = req.headers['x-user-id'] as string || 'default-user';
+      const userId = getRequiredUserId(req, res);
+      if (!userId) return;
       const keys = await storage.getApiKeys(userId);
       
       const sanitized = keys.map(k => ({
@@ -559,7 +656,8 @@ export async function registerRoutes(
 
   app.post("/api/settings/api-keys", async (req, res) => {
     try {
-      const userId = req.headers['x-user-id'] as string || 'default-user';
+      const userId = getRequiredUserId(req, res);
+      if (!userId) return;
       const { name } = req.body;
       
       if (!name) {
@@ -595,6 +693,12 @@ export async function registerRoutes(
 
   app.delete("/api/settings/api-keys/:id", async (req, res) => {
     try {
+      const userId = getRequiredUserId(req, res);
+      if (!userId) return;
+      const apiKey = await storage.getApiKey(Number(req.params.id));
+      if (!apiKey || apiKey.userId !== userId) {
+        return res.status(404).json({ message: 'API key not found' });
+      }
       await storage.deleteApiKey(Number(req.params.id));
       res.status(204).send();
     } catch (err) {
@@ -605,11 +709,86 @@ export async function registerRoutes(
 
 
   // Seed Data
-  if ((await storage.getWorkflows()).length === 0) {
+  // Webhook ingress with signature/API key verification and replay protection
+  app.post("/api/webhooks/:workflowId", async (req, res) => {
+    try {
+      const workflowId = Number(req.params.workflowId);
+      if (!Number.isFinite(workflowId)) {
+        return res.status(400).json({ message: "Invalid workflow id" });
+      }
+
+      const timestamp = String(req.headers['x-hyperchain-timestamp'] || '');
+      const signature = String(req.headers['x-hyperchain-signature'] || '');
+      const apiKeyRaw = String(req.headers['x-api-key'] || '');
+      const now = Date.now();
+      if (!timestamp || Math.abs(now - Number(timestamp)) > WEBHOOK_REPLAY_WINDOW_MS) {
+        return res.status(401).json({ message: "Invalid or stale webhook timestamp" });
+      }
+      if (!signature && !apiKeyRaw) {
+        return res.status(401).json({ message: "Missing webhook authentication" });
+      }
+      const replayKey = `${timestamp}:${signature}`;
+      if (signature && webhookReplayCache.has(replayKey)) {
+        return res.status(409).json({ message: "Replay detected" });
+      }
+      for (const [k, v] of Array.from(webhookReplayCache.entries())) {
+        if (now - v > WEBHOOK_REPLAY_WINDOW_MS) webhookReplayCache.delete(k);
+      }
+
+      let userIdFromApiKey: string | null = null;
+      if (apiKeyRaw) {
+        const hashedKey = crypto.createHash('sha256').update(apiKeyRaw).digest('hex');
+        const apiKey = await storage.getApiKeyByKey(hashedKey);
+        if (!apiKey) return res.status(401).json({ message: "Invalid API key" });
+        userIdFromApiKey = apiKey.userId;
+        await storage.updateApiKeyLastUsed(apiKey.id);
+      }
+
+      if (!userIdFromApiKey) {
+        return res.status(401).json({ message: "API key required for webhook ownership lookup" });
+      }
+      const settings = await storage.getUserSettings(userIdFromApiKey);
+      if (!settings) return res.status(401).json({ message: "User settings not found" });
+
+      if (signature) {
+        const raw = (req as any).rawBody || Buffer.from(JSON.stringify(req.body || {}));
+        const payload = `${timestamp}.${raw.toString('utf8')}`;
+        const expected = crypto.createHmac('sha256', settings.webhookSecret).update(payload).digest('hex');
+        if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+          return res.status(401).json({ message: "Invalid webhook signature" });
+        }
+        webhookReplayCache.set(replayKey, now);
+      }
+
+      const workflow = await storage.getWorkflow(workflowId, userIdFromApiKey);
+      if (!workflow) return res.status(404).json({ message: "Workflow not found" });
+      const execution = await storage.createExecution({ workflowId, status: 'pending' });
+      const runtimeOptions = {
+        timeoutSeconds: settings.defaultTimeout ?? 30,
+        retryAttempts: settings.defaultRetryAttempts ?? 0,
+        retryDelayMs: settings.defaultRetryDelay ?? 1000,
+        userId: userIdFromApiKey,
+      };
+      executeWorkflow(
+        workflow,
+        execution.id,
+        { body: req.body ?? {}, headers: req.headers ?? {}, query: req.query ?? {} },
+        runtimeOptions
+      ).catch((err) => logError('Webhook execution failed', { err, workflowId, executionId: execution.id }));
+
+      return res.status(202).json({ executionId: execution.id });
+    } catch (err) {
+      logError('Webhook ingress failed', { err });
+      return res.status(500).json({ message: "Webhook processing failed" });
+    }
+  });
+
+  if ((await storage.getWorkflows('seed-user')).length === 0) {
     console.log("Seeding database with example workflows...");
 
     // Example 1: Simple Webhook to HTTP
     await storage.createWorkflow({
+      userId: 'seed-user',
       name: "Simple Webhook to HTTP",
       description: "Trigger a request when webhook is called",
       isActive: true,
@@ -634,6 +813,7 @@ export async function registerRoutes(
 
     // Example 2: Webhook → Code Transformation → Email
     await storage.createWorkflow({
+      userId: 'seed-user',
       name: "Data Processing Pipeline",
       description: "Process data with code, then send email notification",
       isActive: true,
@@ -679,6 +859,7 @@ export async function registerRoutes(
 
     // Example 3: Webhook → HTTP → AI Chat
     await storage.createWorkflow({
+      userId: 'seed-user',
       name: "AI Content Generator",
       description: "Fetch content and enhance it with AI",
       isActive: true,

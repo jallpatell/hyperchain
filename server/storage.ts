@@ -30,16 +30,16 @@ type UpdateExecution = z.infer<typeof updateExecutionSchema>;
 
 export interface IStorage {
     // Workflows
-    getWorkflows(): Promise<Workflow[]>;
-    getWorkflow(id: number): Promise<Workflow | undefined>;
+    getWorkflows(userId: string): Promise<Workflow[]>;
+    getWorkflow(id: number, userId: string): Promise<Workflow | undefined>;
     createWorkflow(workflow: InsertWorkflow): Promise<Workflow>;
-    updateWorkflow(id: number, updates: Partial<InsertWorkflow>): Promise<Workflow>;
-    deleteWorkflow(id: number): Promise<void>;
+    updateWorkflow(id: number, userId: string, updates: Partial<InsertWorkflow>): Promise<Workflow>;
+    deleteWorkflow(id: number, userId: string): Promise<void>;
 
     // Executions - Production grade with column projection
-    getExecutions(workflowId?: number, cursor?: number, limit?: number): Promise<ExecutionListItem[]>;
-    getExecution(id: number): Promise<Execution | undefined>;
-    getExecutionDetail(id: number): Promise<ExecutionDetail | undefined>;
+    getExecutions(userId: string, workflowId?: number, cursor?: number, limit?: number): Promise<ExecutionListItem[]>;
+    getExecution(id: number, userId: string): Promise<Execution | undefined>;
+    getExecutionDetail(id: number, userId: string): Promise<ExecutionDetail | undefined>;
     createExecution(execution: InsertExecution): Promise<Execution>;
     updateExecution(id: number, updates: UpdateExecution): Promise<Execution>;
 
@@ -49,11 +49,11 @@ export interface IStorage {
     updateExecutionNode(id: number, updates: Partial<InsertExecutionNode>): Promise<ExecutionNode>;
 
     // Credentials
-    getCredentials(): Promise<Credential[]>;
-    getCredential(id: number): Promise<Credential | undefined>;
+    getCredentials(userId: string): Promise<Credential[]>;
+    getCredential(id: number, userId: string): Promise<Credential | undefined>;
     createCredential(credential: InsertCredential): Promise<Credential>;
     updateCredential(id: number, updates: Partial<InsertCredential>): Promise<Credential>;
-    deleteCredential(id: number): Promise<void>;
+    deleteCredential(id: number, userId: string): Promise<void>;
 
     // API Keys
     getApiKeys(userId: string): Promise<ApiKey[]>;
@@ -71,12 +71,12 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
     // Workflows
-    async getWorkflows(): Promise<Workflow[]> {
-        return await db.select().from(workflows).orderBy(desc(workflows.updatedAt));
+    async getWorkflows(userId: string): Promise<Workflow[]> {
+        return await db.select().from(workflows).where(eq(workflows.userId, userId)).orderBy(desc(workflows.updatedAt));
     }
 
-    async getWorkflow(id: number): Promise<Workflow | undefined> {
-        const [workflow] = await db.select().from(workflows).where(eq(workflows.id, id));
+    async getWorkflow(id: number, userId: string): Promise<Workflow | undefined> {
+        const [workflow] = await db.select().from(workflows).where(and(eq(workflows.id, id), eq(workflows.userId, userId)));
         return workflow;
     }
 
@@ -85,25 +85,28 @@ export class DatabaseStorage implements IStorage {
         return workflow;
     }
 
-    async updateWorkflow(id: number, updates: Partial<InsertWorkflow>): Promise<Workflow> {
+    async updateWorkflow(id: number, userId: string, updates: Partial<InsertWorkflow>): Promise<Workflow> {
         const [updated] = await db
             .update(workflows)
             .set({ ...updates, updatedAt: new Date() })
-            .where(eq(workflows.id, id))
+            .where(and(eq(workflows.id, id), eq(workflows.userId, userId)))
             .returning();
         return updated;
     }
 
-    async deleteWorkflow(id: number): Promise<void> {
+    async deleteWorkflow(id: number, userId: string): Promise<void> {
+        const workflow = await this.getWorkflow(id, userId);
+        if (!workflow) return;
         await db.delete(executions).where(eq(executions.workflowId, id));
         await db.delete(workflows).where(eq(workflows.id, id));
     }
 
     // Executions - Production grade with column projection
-    async getExecutions(workflowId?: number, cursor?: number, limit: number = 50): Promise<ExecutionListItem[]> {
+    async getExecutions(userId: string, workflowId?: number, cursor?: number, limit: number = 50): Promise<ExecutionListItem[]> {
         // Build conditions using and operator
         const conditions = [];
         
+        conditions.push(eq(workflows.userId, userId));
         if (workflowId) {
             conditions.push(eq(executions.workflowId, workflowId));
         }
@@ -140,8 +143,12 @@ export class DatabaseStorage implements IStorage {
         }));
     }
 
-    async getExecution(id: number): Promise<Execution | undefined> {
-        const [execution] = await db.select().from(executions).where(eq(executions.id, id));
+    async getExecution(id: number, userId: string): Promise<Execution | undefined> {
+        const [execution] = await db
+            .select(getTableColumns(executions))
+            .from(executions)
+            .innerJoin(workflows, eq(executions.workflowId, workflows.id))
+            .where(and(eq(executions.id, id), eq(workflows.userId, userId)));
         return execution;
     }
 
@@ -156,8 +163,8 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Execution Detail API - loads execution and nodes separately
-    async getExecutionDetail(id: number): Promise<ExecutionDetail | undefined> {
-        const execution = await this.getExecution(id);
+    async getExecutionDetail(id: number, userId: string): Promise<ExecutionDetail | undefined> {
+        const execution = await this.getExecution(id, userId);
         if (!execution) return undefined;
 
         const nodes = await this.getExecutionNodes(id);
@@ -192,12 +199,12 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Credentials
-    async getCredentials(): Promise<Credential[]> {
-        return await db.select().from(credentials).orderBy(desc(credentials.createdAt));
+    async getCredentials(userId: string): Promise<Credential[]> {
+        return await db.select().from(credentials).where(eq(credentials.userId, userId)).orderBy(desc(credentials.createdAt));
     }
 
-    async getCredential(id: number): Promise<Credential | undefined> {
-        const [credential] = await db.select().from(credentials).where(eq(credentials.id, id));
+    async getCredential(id: number, userId: string): Promise<Credential | undefined> {
+        const [credential] = await db.select().from(credentials).where(and(eq(credentials.id, id), eq(credentials.userId, userId)));
         return credential;
     }
 
@@ -211,8 +218,8 @@ export class DatabaseStorage implements IStorage {
         return updated;
     }
 
-    async deleteCredential(id: number): Promise<void> {
-        await db.delete(credentials).where(eq(credentials.id, id));
+    async deleteCredential(id: number, userId: string): Promise<void> {
+        await db.delete(credentials).where(and(eq(credentials.id, id), eq(credentials.userId, userId)));
     }
 
     // API Keys

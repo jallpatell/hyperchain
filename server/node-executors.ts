@@ -21,6 +21,88 @@ import {
 } from './oauth';
 
 export type NodeExecutionContext = Record<string, any>;
+export interface RuntimeExecutionOptions {
+    timeoutSeconds?: number;
+    retryAttempts?: number;
+    retryDelayMs?: number;
+    userId?: string;
+}
+
+const DEFAULT_TIMEOUT_SECONDS = 30;
+
+function getRuntimeOptions(options?: RuntimeExecutionOptions) {
+    return {
+        timeoutSeconds: options?.timeoutSeconds ?? DEFAULT_TIMEOUT_SECONDS,
+        retryAttempts: options?.retryAttempts ?? 0,
+        retryDelayMs: options?.retryDelayMs ?? 1000,
+    };
+}
+
+async function sleep(ms: number): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableError(err: unknown): boolean {
+    if (!(err instanceof Error)) return false;
+    const msg = err.message.toLowerCase();
+    return msg.includes('429') || msg.includes('timed out') || msg.includes('timeout') || msg.includes('network');
+}
+
+async function runWithRetries<T>(
+    operation: () => Promise<T>,
+    options: RuntimeExecutionOptions | undefined,
+    nodeType: string,
+): Promise<T> {
+    const { retryAttempts, retryDelayMs } = getRuntimeOptions(options);
+    let attempt = 0;
+    let lastError: unknown;
+
+    while (attempt <= retryAttempts) {
+        try {
+            return await operation();
+        } catch (err) {
+            lastError = err;
+            const canRetry = attempt < retryAttempts && isRetryableError(err);
+            if (!canRetry) break;
+            const backoff = retryDelayMs * Math.pow(2, attempt);
+            console.warn(`[${nodeType}] Attempt ${attempt + 1} failed, retrying in ${backoff}ms`);
+            await sleep(backoff);
+            attempt += 1;
+        }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error(`[${nodeType}] Operation failed`);
+}
+
+async function fetchWithPolicy(
+    url: string,
+    init: RequestInit,
+    options: RuntimeExecutionOptions | undefined,
+    nodeType: string,
+): Promise<Response> {
+    return await runWithRetries(async () => {
+        const { timeoutSeconds } = getRuntimeOptions(options);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), timeoutSeconds * 1000);
+        try {
+            const response = await fetch(url, {
+                ...init,
+                signal: controller.signal,
+            });
+            if (!response.ok && [429, 500, 502, 503, 504].includes(response.status)) {
+                throw new Error(`[${nodeType}] Retryable HTTP status: ${response.status}`);
+            }
+            return response;
+        } catch (err) {
+            if (err instanceof DOMException && err.name === 'AbortError') {
+                throw new Error(`[${nodeType}] Request timed out after ${timeoutSeconds}s`);
+            }
+            throw err;
+        } finally {
+            clearTimeout(timeout);
+        }
+    }, options, nodeType);
+}
 
 /**
  * Resolve template variables in node data
@@ -56,47 +138,6 @@ export function resolveTemplateVariables(value: any, context: NodeExecutionConte
 }
 
 /**
- * Fallback helper: if a template references a non-existent node but there is a single parent ($prev),
- * rewrite the template to use $prev before throwing an unresolved error.
- */
-export function fallbackToPrevIfSingleParent(unresolved: string[], context: NodeExecutionContext): string[] {
-    const hasPrev = '$prev' in context && context['$prev'] != null;
-    if (!hasPrev) return unresolved;
-
-    return unresolved.map((tpl) => {
-        const inner = tpl.replace(/^\{\{|\}\}$/g, '').trim();
-        const [nodeId, ...rest] = inner.split('.');
-        // Only rewrite if the referenced node does NOT exist in context
-        if (nodeId && !(nodeId in context) && rest.length > 0) {
-            return `{{$prev.${rest.join('.')}}}`;
-        }
-        return tpl;
-    });
-}
-
-function findUnresolvedTemplates(value: any): string[] {
-    const unresolved: string[] = [];
-
-    const visit = (v: any) => {
-        if (typeof v === 'string') {
-            const matches = v.match(/\{\{[^}]+\}\}/g);
-            if (matches) unresolved.push(...matches);
-            return;
-        }
-        if (Array.isArray(v)) {
-            v.forEach(visit);
-            return;
-        }
-        if (v && typeof v === 'object') {
-            Object.values(v).forEach(visit);
-        }
-    };
-
-    visit(value);
-    return unresolved;
-}
-
-/**
  * Execute a webhook node - returns trigger data if available
  */
 export async function executeWebhook(node: WorkflowNode, context: NodeExecutionContext): Promise<any> {
@@ -116,7 +157,11 @@ export async function executeWebhook(node: WorkflowNode, context: NodeExecutionC
 /**
  * Execute an HTTP request node with proper error handling
  */
-export async function executeHttpRequest(node: WorkflowNode, context: NodeExecutionContext): Promise<any> {
+export async function executeHttpRequest(
+    node: WorkflowNode,
+    context: NodeExecutionContext,
+    options?: RuntimeExecutionOptions,
+): Promise<any> {
     const resolvedData = resolveTemplateVariables(node.data, context);
     const url = resolvedData.url;
 
@@ -140,7 +185,7 @@ export async function executeHttpRequest(node: WorkflowNode, context: NodeExecut
         fetchOptions.body = typeof body === 'string' ? body : JSON.stringify(body);
     }
 
-    const response = await fetch(url, fetchOptions);
+    const response = await fetchWithPolicy(url, fetchOptions, options, 'http-request');
     const contentType = response.headers.get('Content-Type') || '';
     let responseBody: any;
 
@@ -260,7 +305,11 @@ export async function executeCode(node: WorkflowNode, context: NodeExecutionCont
 /**
  * Execute an AI chat node (Claude)
  */
-export async function executeAiChat(node: WorkflowNode, context: NodeExecutionContext): Promise<any> {
+export async function executeAiChat(
+    node: WorkflowNode,
+    context: NodeExecutionContext,
+    options?: RuntimeExecutionOptions,
+): Promise<any> {
     const resolvedData = resolveTemplateVariables(node.data, context);
     const prompt = resolvedData.prompt;
     const systemPrompt = resolvedData.systemPrompt;
@@ -288,7 +337,9 @@ export async function executeAiChat(node: WorkflowNode, context: NodeExecutionCo
         ],
     };
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetchWithPolicy(
+        'https://api.anthropic.com/v1/messages',
+        {
         method: 'POST',
         headers: {
             'x-api-key': apiKey,
@@ -296,7 +347,10 @@ export async function executeAiChat(node: WorkflowNode, context: NodeExecutionCo
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
-    });
+        },
+        options,
+        'ai-chat',
+    );
 
     if (!response.ok) {
         const errorText = await response.text();
@@ -358,29 +412,16 @@ export async function executeDatabase(node: WorkflowNode, context: NodeExecution
 /**
  * Execute an email node with OAuth or SMTP
  */
-export async function executeEmail(node: WorkflowNode, context: NodeExecutionContext): Promise<any> {
+export async function executeEmail(
+    node: WorkflowNode,
+    context: NodeExecutionContext,
+    options?: RuntimeExecutionOptions,
+): Promise<any> {
     const resolvedData = resolveTemplateVariables(node.data, context);
     const to = resolvedData.to;
     const subject = resolvedData.subject;
     const body = resolvedData.body;
     const credentialId = resolvedData.credentialId; // Reference to stored credential
-
-    const unresolved = findUnresolvedTemplates({ to, subject, body });
-    if (unresolved.length > 0) {
-        const rewritten = fallbackToPrevIfSingleParent(unresolved, context);
-        const stillUnresolved = findUnresolvedTemplates({ to, subject, body });
-        if (stillUnresolved.length > 0) {
-            const availableKeys = Object.keys(context || {})
-                .sort()
-                .join(',');
-            throw new Error(
-                `[email] Unresolved template(s): ${stillUnresolved.join(', ')} (available context keys: ${availableKeys})`,
-            );
-        }
-        // Re-resolve with rewritten templates
-        const again = resolveTemplateVariables({ to, subject, body }, context);
-        return { to: again.to, subject: again.subject, body: again.body, credentialId };
-    }
 
     if (!to) {
         throw new Error(`[email] Missing required field: to`);
@@ -394,7 +435,10 @@ export async function executeEmail(node: WorkflowNode, context: NodeExecutionCon
 
     // Try OAuth first if credentialId is provided
     if (credentialId) {
-        const credential = await storage.getCredential(credentialId);
+        if (!options?.userId) {
+            throw new Error('[email] Missing execution user context');
+        }
+        const credential = await storage.getCredential(credentialId, options.userId);
         if (!credential) {
             throw new Error(`[email] Credential not found: ${credentialId}`);
         }
@@ -476,8 +520,11 @@ export async function executeEmail(node: WorkflowNode, context: NodeExecutionCon
 /**
  * Helper: resolve and refresh a Google credential (Drive or Sheets)
  */
-async function resolveGoogleCredential(credentialId: number): Promise<{ accessToken: string; clientId: string; clientSecret: string }> {
-    const credential = await storage.getCredential(credentialId);
+async function resolveGoogleCredentialForUser(
+    credentialId: number,
+    userId: string,
+): Promise<{ accessToken: string; clientId: string; clientSecret: string }> {
+    const credential = await storage.getCredential(credentialId, userId);
     if (!credential) throw new Error(`Credential not found: ${credentialId}`);
     const decrypted = decrypt(credential.data as string);
     let tokens = decrypted.tokens;
@@ -503,7 +550,9 @@ export async function executeSlack(node: WorkflowNode, context: NodeExecutionCon
     if (!channel) throw new Error('[slack] Missing required field: channel');
     if (!text) throw new Error('[slack] Missing required field: text');
 
-    const credential = await storage.getCredential(Number(credentialId));
+    const userId = context['$runtime']?.userId;
+    if (!userId) throw new Error('[slack] Missing execution user context');
+    const credential = await storage.getCredential(Number(credentialId), userId);
     if (!credential) throw new Error(`[slack] Credential not found: ${credentialId}`);
     const decrypted = decrypt(credential.data as string);
 
@@ -521,7 +570,9 @@ export async function executeGoogleDrive(node: WorkflowNode, context: NodeExecut
 
     if (!credentialId) throw new Error('[google-drive] Missing required field: credentialId');
 
-    const { accessToken } = await resolveGoogleCredential(Number(credentialId));
+    const userId = context['$runtime']?.userId;
+    if (!userId) throw new Error('[google-drive] Missing execution user context');
+    const { accessToken } = await resolveGoogleCredentialForUser(Number(credentialId), userId);
 
     switch (operation) {
         case 'list': {
@@ -561,7 +612,9 @@ export async function executeGoogleSheets(node: WorkflowNode, context: NodeExecu
     if (!credentialId) throw new Error('[google-sheets] Missing required field: credentialId');
     if (!spreadsheetId) throw new Error('[google-sheets] Missing required field: spreadsheetId');
 
-    const { accessToken } = await resolveGoogleCredential(Number(credentialId));
+    const userId = context['$runtime']?.userId;
+    if (!userId) throw new Error('[google-sheets] Missing execution user context');
+    const { accessToken } = await resolveGoogleCredentialForUser(Number(credentialId), userId);
 
     switch (operation) {
         case 'read': {
@@ -598,7 +651,11 @@ export async function executeGoogleSheets(node: WorkflowNode, context: NodeExecu
 /**
  * Generic node executor that dispatches to type-specific handlers
  */
-export async function executeNode(node: WorkflowNode, context: NodeExecutionContext): Promise<any> {
+export async function executeNode(
+    node: WorkflowNode,
+    context: NodeExecutionContext,
+    options?: RuntimeExecutionOptions,
+): Promise<any> {
     const nodeType = node.type;
 
     switch (nodeType) {
@@ -606,19 +663,19 @@ export async function executeNode(node: WorkflowNode, context: NodeExecutionCont
             return await executeWebhook(node, context);
 
         case 'http-request':
-            return await executeHttpRequest(node, context);
+            return await executeHttpRequest(node, context, options);
 
         case 'code':
             return await executeCode(node, context);
 
         case 'ai-chat':
-            return await executeAiChat(node, context);
+            return await executeAiChat(node, context, options);
 
         case 'database':
             return await executeDatabase(node, context);
 
         case 'email':
-            return await executeEmail(node, context);
+            return await executeEmail(node, context, options);
 
         case 'slack':
             return await executeSlack(node, context);

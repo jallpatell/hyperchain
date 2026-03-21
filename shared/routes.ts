@@ -81,7 +81,7 @@ export const api = {
         create: {
             method: 'POST' as const,
             path: '/api/workflows' as const,
-            input: insertWorkflowSchema,
+            input: insertWorkflowSchema.omit({ userId: true }),
             responses: {
                 201: z.custom<typeof workflows.$inferSelect>(),
                 400: errorSchemas.validation,
@@ -90,7 +90,7 @@ export const api = {
         update: {
             method: 'PUT' as const,
             path: '/api/workflows/:id' as const,
-            input: insertWorkflowSchema.partial(),
+            input: insertWorkflowSchema.omit({ userId: true }).partial(),
             responses: {
                 200: z.custom<typeof workflows.$inferSelect>(),
                 400: errorSchemas.validation,
@@ -147,7 +147,7 @@ export const api = {
         create: {
             method: 'POST' as const,
             path: '/api/credentials' as const,
-            input: insertCredentialSchema,
+            input: insertCredentialSchema.omit({ userId: true }),
             responses: {
                 201: z.custom<typeof credentials.$inferSelect>(),
                 400: errorSchemas.validation,

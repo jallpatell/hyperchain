@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 export const workflows = pgTable('workflows', {
     id: serial('id').primaryKey(),
+    userId: text('user_id').notNull(),
     name: text('name').notNull(),
     description: text('description').default(''),
     isActive: boolean('is_active').default(false),
@@ -42,6 +43,7 @@ export const executionNodes = pgTable('execution_nodes', {
 
 export const credentials = pgTable('credentials', {
     id: serial('id').primaryKey(),
+    userId: text('user_id').notNull(),
     name: text('name'),
     type: text('type').notNull(), // 'openai', 'postgres', 'github', etc.
     data: jsonb('data').notNull(), // Encrypted/stored credential details
@@ -113,8 +115,8 @@ export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({ 
 // Workflow Types
 export type Workflow = typeof workflows.$inferSelect;
 export type InsertWorkflow = z.infer<typeof insertWorkflowSchema>;
-export type CreateWorkflowRequest = InsertWorkflow;
-export type UpdateWorkflowRequest = Partial<InsertWorkflow>;
+export type CreateWorkflowRequest = Omit<InsertWorkflow, 'userId'>;
+export type UpdateWorkflowRequest = Partial<Omit<InsertWorkflow, 'userId'>>;
 
 // Execution Types
 export type Execution = typeof executions.$inferSelect;
@@ -143,6 +145,198 @@ export interface WorkflowNode {
     type: string; // 'webhook', 'http-request', 'code', 'ai-chat', etc.
     position: { x: number; y: number };
     data: Record<string, any>; // Node specific configuration
+}
+
+export const supportedNodeTypes = [
+    'webhook',
+    'http-request',
+    'code',
+    'ai-chat',
+    'database',
+    'email',
+    'slack',
+    'google-drive',
+    'google-sheets',
+] as const;
+
+const nonEmptyString = z.string().trim().min(1);
+const optionalNonEmptyString = z.string().trim().optional();
+
+const webhookNodeDataSchema = z.object({
+    method: optionalNonEmptyString,
+    path: optionalNonEmptyString,
+    label: optionalNonEmptyString,
+});
+
+const httpRequestNodeDataSchema = z.object({
+    url: nonEmptyString,
+    method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']).optional(),
+    headers: z.record(z.string(), z.string()).optional(),
+    body: z.union([z.string(), z.record(z.string(), z.any()), z.array(z.any())]).optional(),
+    label: optionalNonEmptyString,
+});
+
+const codeNodeDataSchema = z.object({
+    code: nonEmptyString,
+    label: optionalNonEmptyString,
+});
+
+const aiChatNodeDataSchema = z
+    .object({
+        prompt: z.string().optional(),
+        systemPrompt: z.string().optional(),
+        model: optionalNonEmptyString,
+        label: optionalNonEmptyString,
+    })
+    .refine((data) => Boolean(data.prompt?.trim() || data.systemPrompt?.trim()), {
+        message: 'at least one of prompt or systemPrompt is required',
+    });
+
+const databaseNodeDataSchema = z.object({
+    connectionString: nonEmptyString,
+    query: nonEmptyString,
+    label: optionalNonEmptyString,
+});
+
+const emailNodeDataSchema = z.object({
+    provider: z.enum(['gmail-oauth', 'smtp']).optional(),
+    credentialId: z.number().int().positive().optional(),
+    to: nonEmptyString,
+    subject: nonEmptyString,
+    body: nonEmptyString,
+    host: optionalNonEmptyString,
+    port: z.union([z.string(), z.number()]).optional(),
+    user: optionalNonEmptyString,
+    pass: optionalNonEmptyString,
+    from: optionalNonEmptyString,
+    label: optionalNonEmptyString,
+});
+
+const slackNodeDataSchema = z.object({
+    credentialId: z.number().int().positive(),
+    channel: nonEmptyString,
+    text: nonEmptyString,
+    label: optionalNonEmptyString,
+});
+
+const googleDriveNodeDataSchema = z
+    .object({
+        credentialId: z.number().int().positive(),
+        operation: z.enum(['list', 'get', 'upload']).optional(),
+        query: optionalNonEmptyString,
+        pageSize: z.number().int().positive().max(1000).optional(),
+        fileId: optionalNonEmptyString,
+        fileName: optionalNonEmptyString,
+        content: z.union([z.string(), z.record(z.string(), z.any()), z.array(z.any())]).optional(),
+        mimeType: optionalNonEmptyString,
+        folderId: optionalNonEmptyString,
+        label: optionalNonEmptyString,
+    })
+    .superRefine((data, ctx) => {
+        if (data.operation === 'get' && !data.fileId) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'fileId is required for get operation', path: ['fileId'] });
+        }
+        if (data.operation === 'upload' && !data.fileName) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'fileName is required for upload operation',
+                path: ['fileName'],
+            });
+        }
+        if (data.operation === 'upload' && (data.content === undefined || data.content === null || data.content === '')) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'content is required for upload operation',
+                path: ['content'],
+            });
+        }
+    });
+
+const googleSheetsNodeDataSchema = z
+    .object({
+        credentialId: z.number().int().positive(),
+        operation: z.enum(['read', 'append', 'update']).optional(),
+        spreadsheetId: nonEmptyString,
+        range: optionalNonEmptyString,
+        values: z.union([z.string(), z.array(z.array(z.any()))]).optional(),
+        label: optionalNonEmptyString,
+    })
+    .superRefine((data, ctx) => {
+        if ((data.operation === 'append' || data.operation === 'update') && !data.values) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'values is required for append/update operation',
+                path: ['values'],
+            });
+        }
+    });
+
+export const workflowNodeSchema = z.discriminatedUnion('type', [
+    z.object({
+        id: nonEmptyString,
+        type: z.literal('webhook'),
+        position: z.object({ x: z.number(), y: z.number() }),
+        data: webhookNodeDataSchema,
+    }),
+    z.object({
+        id: nonEmptyString,
+        type: z.literal('http-request'),
+        position: z.object({ x: z.number(), y: z.number() }),
+        data: httpRequestNodeDataSchema,
+    }),
+    z.object({
+        id: nonEmptyString,
+        type: z.literal('code'),
+        position: z.object({ x: z.number(), y: z.number() }),
+        data: codeNodeDataSchema,
+    }),
+    z.object({
+        id: nonEmptyString,
+        type: z.literal('ai-chat'),
+        position: z.object({ x: z.number(), y: z.number() }),
+        data: aiChatNodeDataSchema,
+    }),
+    z.object({
+        id: nonEmptyString,
+        type: z.literal('database'),
+        position: z.object({ x: z.number(), y: z.number() }),
+        data: databaseNodeDataSchema,
+    }),
+    z.object({
+        id: nonEmptyString,
+        type: z.literal('email'),
+        position: z.object({ x: z.number(), y: z.number() }),
+        data: emailNodeDataSchema,
+    }),
+    z.object({
+        id: nonEmptyString,
+        type: z.literal('slack'),
+        position: z.object({ x: z.number(), y: z.number() }),
+        data: slackNodeDataSchema,
+    }),
+    z.object({
+        id: nonEmptyString,
+        type: z.literal('google-drive'),
+        position: z.object({ x: z.number(), y: z.number() }),
+        data: googleDriveNodeDataSchema,
+    }),
+    z.object({
+        id: nonEmptyString,
+        type: z.literal('google-sheets'),
+        position: z.object({ x: z.number(), y: z.number() }),
+        data: googleSheetsNodeDataSchema,
+    }),
+]);
+
+export const workflowNodesSchema = z.array(workflowNodeSchema);
+
+export function validateWorkflowNode(node: WorkflowNode): { ok: true } | { ok: false; message: string } {
+    const parsed = workflowNodeSchema.safeParse(node);
+    if (parsed.success) {
+        return { ok: true };
+    }
+    const issue = parsed.error.issues[0];
+    return { ok: false, message: issue?.message || 'Invalid node configuration' };
 }
 
 export interface WorkflowEdge {

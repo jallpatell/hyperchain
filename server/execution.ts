@@ -1,6 +1,7 @@
 import type { Workflow, WorkflowNode, WorkflowEdge } from '@shared/schema';
+import { validateWorkflowNode } from '@shared/schema';
 import { storage } from './storage';
-import { executeNode } from './node-executors';
+import { executeNode, type RuntimeExecutionOptions } from './node-executors';
 
 export type NodeStatus = 'pending' | 'running' | 'success' | 'error' | 'skipped';
 export type ExecutionStatus = 'pending' | 'running' | 'completed' | 'failed';
@@ -55,46 +56,6 @@ function emit(progress: ExecutionProgress): void {
             }
         });
     }
-}
-
-function validateNodeInputs(node: WorkflowNode): string | null {
-    const data = node.data || {};
-
-    switch (node.type) {
-        case 'http-request':
-            if (!data.url) return `[${node.id}] Missing required field: url`;
-            break;
-        case 'code':
-            if (!data.code) return `[${node.id}] Missing required field: code`;
-            break;
-        case 'ai-chat':
-            if (!data.prompt && !data.systemPrompt) {
-                return `[${node.id}] Missing required field: at least one of prompt or systemPrompt`;
-            }
-            break;
-        case 'database':
-            if (!data.connectionString) return `[${node.id}] Missing required field: connectionString`;
-            if (!data.query) return `[${node.id}] Missing required field: query`;
-            break;
-        case 'email':
-            if (!data.to) return `[${node.id}] Missing required field: to`;
-            if (!data.subject) return `[${node.id}] Missing required field: subject`;
-            if (!data.body) return `[${node.id}] Missing required field: body`;
-            break;
-        case 'slack':
-            if (!data.credentialId) return `[${node.id}] Missing required field: credentialId`;
-            if (!data.channel) return `[${node.id}] Missing required field: channel`;
-            if (!data.text) return `[${node.id}] Missing required field: text`;
-            break;
-        case 'google-drive':
-            if (!data.credentialId) return `[${node.id}] Missing required field: credentialId`;
-            break;
-        case 'google-sheets':
-            if (!data.credentialId) return `[${node.id}] Missing required field: credentialId`;
-            if (!data.spreadsheetId) return `[${node.id}] Missing required field: spreadsheetId`;
-            break;
-    }
-    return null;
 }
 
 function buildGraph(
@@ -163,7 +124,12 @@ async function upsertExecutionNode(
     }
 }
 
-export async function executeWorkflow(workflow: Workflow, executionId: number, triggerData?: any): Promise<void> {
+export async function executeWorkflow(
+    workflow: Workflow,
+    executionId: number,
+    triggerData?: any,
+    runtimeOptions: RuntimeExecutionOptions = {},
+): Promise<void> {
     console.log(`[executor] Starting execution ${executionId} for workflow ${workflow.id}`);
 
     try {
@@ -172,9 +138,9 @@ export async function executeWorkflow(workflow: Workflow, executionId: number, t
 
         // ─── Validate all node inputs before execution ──────
         for (const node of nodes) {
-            const validationError = validateNodeInputs(node);
-            if (validationError) {
-                const errorMsg = `Validation error: ${validationError}`;
+            const validation = validateWorkflowNode(node);
+            if (!validation.ok) {
+                const errorMsg = `Validation error: [${node.id}] ${validation.message}`;
                 console.error(`[executor] ${errorMsg}`);
                 await storage.updateExecution(executionId, {
                     status: 'failed',
@@ -245,6 +211,9 @@ export async function executeWorkflow(workflow: Workflow, executionId: number, t
 
         // Initialize context for data flow between nodes
         let context: Record<string, any> = {};
+        context['$runtime'] = {
+            userId: runtimeOptions.userId,
+        };
 
         // Seed trigger data if provided
         if (triggerData !== undefined) {
@@ -296,7 +265,7 @@ export async function executeWorkflow(workflow: Workflow, executionId: number, t
                 context['$parents'] = parentsMap;
 
                 // Execute node with context containing outputs from previous nodes
-                const output = await executeNode(currentNode, context);
+                const output = await executeNode(currentNode, context, runtimeOptions);
                 context[currentNode.id] = output;
 
                 // Mark as success
