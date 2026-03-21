@@ -181,40 +181,47 @@ export async function registerRoutes(
 
   // helper that prefers a 'gmail-oauth-config' credential but falls back to env vars
   async function loadGmailOAuthConfig() {
-    // look for a dedicated config credential
     const creds = await storage.getCredentials();
     const cfgCred = creds.find((c) => c.type === "gmail-oauth-config");
     if (cfgCred && cfgCred.data) {
       const { decrypt } = await import("./crypto");
       let parsed: any;
       try {
-        // data is encrypted string, decrypt with asJSON=false to get raw string, then parse
         const decryptedStr = decrypt(cfgCred.data as string, false);
         parsed = JSON.parse(decryptedStr);
       } catch (err) {
         console.error("Failed to parse gmail-oauth-config data", err);
         parsed = {};
       }
-      console.log("[oauth] using DB config, clientId starts with", parsed.clientId?.slice(0,10));
-      console.log("[oauth] using DB config, clientId starts with", parsed.clientId?.slice(0,10));
       return {
         clientId: parsed.clientId,
         clientSecret: parsed.clientSecret,
-        redirectUri:
-          process.env.GMAIL_REDIRECT_URI ||
-          "http://localhost:5000/api/oauth/gmail/callback",
+        redirectUri: process.env.GMAIL_REDIRECT_URI || "http://localhost:5000/api/oauth/gmail/callback",
       };
     }
-
-    // fallback to environment variables
     const clientId = process.env.GMAIL_CLIENT_ID;
     const clientSecret = process.env.GMAIL_CLIENT_SECRET;
     const redirectUri = process.env.GMAIL_REDIRECT_URI || "http://localhost:5000/api/oauth/gmail/callback";
-    if (clientId && clientSecret) {
-      console.log("[oauth] using env config, clientId starts with", clientId?.slice(0,10));
-      return { clientId, clientSecret, redirectUri };
-    }
+    if (clientId && clientSecret) return { clientId, clientSecret, redirectUri };
+    return null;
+  }
 
+  // helper: load Google OAuth config for Drive/Sheets (uses same Google app)
+  async function loadGoogleOAuthConfig(service: 'drive' | 'sheets') {
+    const clientId = process.env.GOOGLE_CLIENT_ID || process.env.GMAIL_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET || process.env.GMAIL_CLIENT_SECRET;
+    const redirectUri = process.env[`GOOGLE_${service.toUpperCase()}_REDIRECT_URI`]
+      || `http://localhost:5000/api/oauth/google/${service}/callback`;
+    if (clientId && clientSecret) return { clientId, clientSecret, redirectUri };
+    return null;
+  }
+
+  // helper: load Slack OAuth config
+  async function loadSlackOAuthConfig() {
+    const clientId = process.env.SLACK_CLIENT_ID;
+    const clientSecret = process.env.SLACK_CLIENT_SECRET;
+    const redirectUri = process.env.SLACK_REDIRECT_URI || "http://localhost:5000/api/oauth/slack/callback";
+    if (clientId && clientSecret) return { clientId, clientSecret, redirectUri };
     return null;
   }
 
@@ -226,14 +233,10 @@ export async function registerRoutes(
         message: "Gmail OAuth is not configured. Add a Gmail OAuth App credential or set GMAIL_CLIENT_ID/GMAIL_CLIENT_SECRET env vars.",
       });
     }
-
     const { getGmailAuthUrl } = await import("./oauth");
     const { generateToken } = await import("./crypto");
     const state = generateToken();
-
-    // Store state in memory (in production, use Redis or database)
     const authUrl = getGmailAuthUrl(cfg, state);
-
     res.json({ authUrl, state });
   });
 
@@ -385,9 +388,102 @@ export async function registerRoutes(
     }
   });
 
+  // --- Google Drive OAuth ---
+  app.get("/api/oauth/google/drive/auth-url", async (req, res) => {
+    const cfg = await loadGoogleOAuthConfig('drive');
+    if (!cfg) return res.status(400).json({ message: "Google OAuth not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET." });
+    const { getGoogleAuthUrl } = await import("./oauth");
+    const { generateToken } = await import("./crypto");
+    res.json({ authUrl: getGoogleAuthUrl(cfg, generateToken(), 'drive') });
+  });
+
+  app.get("/api/oauth/google/drive/callback", async (req, res) => {
+    try {
+      const { code, error } = req.query;
+      if (error) return res.redirect(`/credentials?error=${error}`);
+      if (!code) return res.redirect('/credentials?error=no_code');
+      const cfg = await loadGoogleOAuthConfig('drive');
+      if (!cfg) return res.redirect('/credentials?error=not_configured');
+      const { exchangeGoogleServiceCode, getGoogleUserEmail } = await import("./oauth");
+      const { encrypt } = await import("./crypto");
+      const tokens = await exchangeGoogleServiceCode(String(code), cfg);
+      const email = await getGoogleUserEmail(tokens.accessToken);
+      await storage.createCredential({
+        name: `Google Drive - ${email}`,
+        type: 'google-drive',
+        data: encrypt({ email, tokens, clientId: cfg.clientId, clientSecret: cfg.clientSecret }),
+      });
+      return res.redirect(`/credentials?success=true&email=${encodeURIComponent(email)}&service=Google+Drive`);
+    } catch (err) {
+      console.error('[oauth] Google Drive callback error:', err);
+      return res.redirect(`/credentials?error=${encodeURIComponent(err instanceof Error ? err.message : 'unknown')}`);
+    }
+  });
+
+  // --- Google Sheets OAuth ---
+  app.get("/api/oauth/google/sheets/auth-url", async (req, res) => {
+    const cfg = await loadGoogleOAuthConfig('sheets');
+    if (!cfg) return res.status(400).json({ message: "Google OAuth not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET." });
+    const { getGoogleAuthUrl } = await import("./oauth");
+    const { generateToken } = await import("./crypto");
+    res.json({ authUrl: getGoogleAuthUrl(cfg, generateToken(), 'sheets') });
+  });
+
+  app.get("/api/oauth/google/sheets/callback", async (req, res) => {
+    try {
+      const { code, error } = req.query;
+      if (error) return res.redirect(`/credentials?error=${error}`);
+      if (!code) return res.redirect('/credentials?error=no_code');
+      const cfg = await loadGoogleOAuthConfig('sheets');
+      if (!cfg) return res.redirect('/credentials?error=not_configured');
+      const { exchangeGoogleServiceCode, getGoogleUserEmail } = await import("./oauth");
+      const { encrypt } = await import("./crypto");
+      const tokens = await exchangeGoogleServiceCode(String(code), cfg);
+      const email = await getGoogleUserEmail(tokens.accessToken);
+      await storage.createCredential({
+        name: `Google Sheets - ${email}`,
+        type: 'google-sheets',
+        data: encrypt({ email, tokens, clientId: cfg.clientId, clientSecret: cfg.clientSecret }),
+      });
+      return res.redirect(`/credentials?success=true&email=${encodeURIComponent(email)}&service=Google+Sheets`);
+    } catch (err) {
+      console.error('[oauth] Google Sheets callback error:', err);
+      return res.redirect(`/credentials?error=${encodeURIComponent(err instanceof Error ? err.message : 'unknown')}`);
+    }
+  });
+
+  // --- Slack OAuth ---
+  app.get("/api/oauth/slack/auth-url", async (req, res) => {
+    const cfg = await loadSlackOAuthConfig();
+    if (!cfg) return res.status(400).json({ message: "Slack OAuth not configured. Set SLACK_CLIENT_ID and SLACK_CLIENT_SECRET." });
+    const { getSlackAuthUrl } = await import("./oauth");
+    const { generateToken } = await import("./crypto");
+    res.json({ authUrl: getSlackAuthUrl(cfg, generateToken()) });
+  });
+
+  app.get("/api/oauth/slack/callback", async (req, res) => {
+    try {
+      const { code, error } = req.query;
+      if (error) return res.redirect(`/credentials?error=${error}`);
+      if (!code) return res.redirect('/credentials?error=no_code');
+      const cfg = await loadSlackOAuthConfig();
+      if (!cfg) return res.redirect('/credentials?error=not_configured');
+      const { exchangeSlackCode } = await import("./oauth");
+      const { encrypt } = await import("./crypto");
+      const result = await exchangeSlackCode(String(code), cfg);
+      await storage.createCredential({
+        name: `Slack - ${result.teamName}`,
+        type: 'slack',
+        data: encrypt({ accessToken: result.accessToken, teamName: result.teamName, botUserId: result.botUserId }),
+      });
+      return res.redirect(`/credentials?success=true&email=${encodeURIComponent(result.teamName)}&service=Slack`);
+    } catch (err) {
+      console.error('[oauth] Slack callback error:', err);
+      return res.redirect(`/credentials?error=${encodeURIComponent(err instanceof Error ? err.message : 'unknown')}`);
+    }
+  });
+
   // --- Settings Routes ---
-  
-  // Get user settings
   app.get("/api/settings", async (req, res) => {
     try {
       const userId = req.headers['x-user-id'] as string || 'default-user';

@@ -7,7 +7,18 @@ import vm from 'vm';
 import type { WorkflowNode } from '@shared/schema';
 import { decrypt } from './crypto';
 import { storage } from './storage';
-import { refreshGmailToken, sendGmailWithOAuth } from './oauth';
+import {
+    refreshGmailToken,
+    refreshGoogleServiceToken,
+    sendGmailWithOAuth,
+    listDriveFiles,
+    uploadDriveFile,
+    getDriveFile,
+    readSheetValues,
+    appendSheetValues,
+    updateSheetValues,
+    sendSlackMessage,
+} from './oauth';
 
 export type NodeExecutionContext = Record<string, any>;
 
@@ -463,6 +474,128 @@ export async function executeEmail(node: WorkflowNode, context: NodeExecutionCon
 }
 
 /**
+ * Helper: resolve and refresh a Google credential (Drive or Sheets)
+ */
+async function resolveGoogleCredential(credentialId: number): Promise<{ accessToken: string; clientId: string; clientSecret: string }> {
+    const credential = await storage.getCredential(credentialId);
+    if (!credential) throw new Error(`Credential not found: ${credentialId}`);
+    const decrypted = decrypt(credential.data as string);
+    let tokens = decrypted.tokens;
+    if (tokens.expiresAt < Date.now()) {
+        tokens = await refreshGoogleServiceToken(tokens.refreshToken, decrypted.clientId, decrypted.clientSecret);
+        await storage.updateCredential(credentialId, {
+            data: JSON.stringify({ ...decrypted, tokens }),
+        });
+    }
+    return { accessToken: tokens.accessToken, clientId: decrypted.clientId, clientSecret: decrypted.clientSecret };
+}
+
+/**
+ * Execute a Slack node — send a message to a channel
+ */
+export async function executeSlack(node: WorkflowNode, context: NodeExecutionContext): Promise<any> {
+    const resolvedData = resolveTemplateVariables(node.data, context);
+    const credentialId = resolvedData.credentialId;
+    const channel = resolvedData.channel;
+    const text = resolvedData.text;
+
+    if (!credentialId) throw new Error('[slack] Missing required field: credentialId');
+    if (!channel) throw new Error('[slack] Missing required field: channel');
+    if (!text) throw new Error('[slack] Missing required field: text');
+
+    const credential = await storage.getCredential(Number(credentialId));
+    if (!credential) throw new Error(`[slack] Credential not found: ${credentialId}`);
+    const decrypted = decrypt(credential.data as string);
+
+    const result = await sendSlackMessage(decrypted.accessToken, channel, text);
+    return { ts: result.ts, channel: result.channel, sent: true };
+}
+
+/**
+ * Execute a Google Drive node — list, get, or upload files
+ */
+export async function executeGoogleDrive(node: WorkflowNode, context: NodeExecutionContext): Promise<any> {
+    const resolvedData = resolveTemplateVariables(node.data, context);
+    const credentialId = resolvedData.credentialId;
+    const operation = resolvedData.operation || 'list';
+
+    if (!credentialId) throw new Error('[google-drive] Missing required field: credentialId');
+
+    const { accessToken } = await resolveGoogleCredential(Number(credentialId));
+
+    switch (operation) {
+        case 'list': {
+            const result = await listDriveFiles(accessToken, resolvedData.query, resolvedData.pageSize);
+            return { files: result.files, count: result.files.length };
+        }
+        case 'get': {
+            if (!resolvedData.fileId) throw new Error('[google-drive] Missing required field: fileId for get operation');
+            return await getDriveFile(accessToken, resolvedData.fileId);
+        }
+        case 'upload': {
+            if (!resolvedData.fileName) throw new Error('[google-drive] Missing required field: fileName for upload operation');
+            if (!resolvedData.content) throw new Error('[google-drive] Missing required field: content for upload operation');
+            return await uploadDriveFile(
+                accessToken,
+                resolvedData.fileName,
+                resolvedData.content,
+                resolvedData.mimeType || 'text/plain',
+                resolvedData.folderId,
+            );
+        }
+        default:
+            throw new Error(`[google-drive] Unknown operation: ${operation}`);
+    }
+}
+
+/**
+ * Execute a Google Sheets node — read, append, or update rows
+ */
+export async function executeGoogleSheets(node: WorkflowNode, context: NodeExecutionContext): Promise<any> {
+    const resolvedData = resolveTemplateVariables(node.data, context);
+    const credentialId = resolvedData.credentialId;
+    const operation = resolvedData.operation || 'read';
+    const spreadsheetId = resolvedData.spreadsheetId;
+    const range = resolvedData.range || 'Sheet1';
+
+    if (!credentialId) throw new Error('[google-sheets] Missing required field: credentialId');
+    if (!spreadsheetId) throw new Error('[google-sheets] Missing required field: spreadsheetId');
+
+    const { accessToken } = await resolveGoogleCredential(Number(credentialId));
+
+    switch (operation) {
+        case 'read': {
+            const result = await readSheetValues(accessToken, spreadsheetId, range);
+            const [headers, ...rows] = result.values;
+            const objects = headers
+                ? rows.map((row) => Object.fromEntries(headers.map((h: string, i: number) => [h, row[i] ?? ''])))
+                : [];
+            return { values: result.values, rows: objects, rowCount: rows.length };
+        }
+        case 'append': {
+            let values: any[][];
+            if (typeof resolvedData.values === 'string') {
+                try { values = JSON.parse(resolvedData.values); } catch { values = [[resolvedData.values]]; }
+            } else {
+                values = resolvedData.values || [[]];
+            }
+            return await appendSheetValues(accessToken, spreadsheetId, range, values);
+        }
+        case 'update': {
+            let values: any[][];
+            if (typeof resolvedData.values === 'string') {
+                try { values = JSON.parse(resolvedData.values); } catch { values = [[resolvedData.values]]; }
+            } else {
+                values = resolvedData.values || [[]];
+            }
+            return await updateSheetValues(accessToken, spreadsheetId, range, values);
+        }
+        default:
+            throw new Error(`[google-sheets] Unknown operation: ${operation}`);
+    }
+}
+
+/**
  * Generic node executor that dispatches to type-specific handlers
  */
 export async function executeNode(node: WorkflowNode, context: NodeExecutionContext): Promise<any> {
@@ -486,6 +619,15 @@ export async function executeNode(node: WorkflowNode, context: NodeExecutionCont
 
         case 'email':
             return await executeEmail(node, context);
+
+        case 'slack':
+            return await executeSlack(node, context);
+
+        case 'google-drive':
+            return await executeGoogleDrive(node, context);
+
+        case 'google-sheets':
+            return await executeGoogleSheets(node, context);
 
         default:
             console.warn(`[executor] Unknown node type: ${nodeType}`);

@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { Node } from 'reactflow';
+import type { Node } from '@xyflow/react';
 
 interface UseOnDropParams {
   screenToFlowPosition: (pos: { x: number; y: number }) => { x: number; y: number };

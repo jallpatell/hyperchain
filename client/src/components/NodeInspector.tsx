@@ -5,10 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useGmailOAuth } from '@/hooks/use-gmail-oauth';
+import { useGoogleOAuth } from '@/hooks/use-google-oauth';
+import { useSlackOAuth } from '@/hooks/use-slack-oauth';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { WorkflowNode } from '@shared/schema';
 import { useState, useEffect } from 'react';
 import { Trash2, Mail, ExternalLink, Copy } from 'lucide-react';
+import { SiSlack, SiGoogledrive, SiGooglesheets } from 'react-icons/si';
 import { getNodeMeta } from '../utils/nodeTypes';
 import { useCredentials } from '@/hooks/use-credentials';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +27,9 @@ interface NodeInspectorProps {
 export function NodeInspector({ node, isOpen, onClose, onUpdate, onDelete }: NodeInspectorProps) {
     const { data: credentials } = useCredentials();
     const gmailOAuthMutation = useGmailOAuth();
+    const driveOAuthMutation = useGoogleOAuth('drive');
+    const sheetsOAuthMutation = useGoogleOAuth('sheets');
+    const slackOAuthMutation = useSlackOAuth();
     const [formData, setFormData] = useState<Record<string, any>>({});
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [showGmailNotice, setShowGmailNotice] = useState(false);
@@ -455,6 +461,155 @@ export function NodeInspector({ node, isOpen, onClose, onUpdate, onDelete }: Nod
                                             Uses SMTP_* environment variables if not specified
                                         </p>
                                     </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {node.type === 'slack' && (
+                        <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-border">
+                            <div className="space-y-2">
+                                <Label>Slack Credential <span className="text-red-500">*</span></Label>
+                                <Select value={formData.credentialId ? String(formData.credentialId) : ''} onValueChange={(v) => handleChange('credentialId', parseInt(v))}>
+                                    <SelectTrigger><SelectValue placeholder="Select Slack workspace" /></SelectTrigger>
+                                    <SelectContent>
+                                        {credentials?.filter((c) => c.type === 'slack').map((c) => (
+                                            <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                                        ))}
+                                        {credentials?.filter((c) => c.type === 'slack').length === 0 && (
+                                            <SelectItem disabled value="__none">No Slack credentials — connect one first</SelectItem>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                                {credentials?.filter((c) => c.type === 'slack').length === 0 && (
+                                    <Button size="sm" variant="outline" className="w-full gap-2" onClick={() => slackOAuthMutation.mutate()} disabled={slackOAuthMutation.isPending}>
+                                        <SiSlack className="w-4 h-4 text-[#4A154B]" />
+                                        {slackOAuthMutation.isPending ? 'Connecting...' : 'Connect Slack'}
+                                    </Button>
+                                )}
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Channel <span className="text-red-500">*</span></Label>
+                                <Input placeholder="#general or channel ID" value={formData.channel || ''} onChange={(e) => handleChange('channel', e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Message <span className="text-red-500">*</span></Label>
+                                <Textarea placeholder="Hello from Hyperchain! {{$prev.text}}" value={formData.text || ''} onChange={(e) => handleChange('text', e.target.value)} className="h-24" />
+                                <p className="text-xs text-muted-foreground">Use {'{{'} $prev.field {'}}'}  to reference previous node output.</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {node.type === 'google-drive' && (
+                        <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-border">
+                            <div className="space-y-2">
+                                <Label>Google Drive Credential <span className="text-red-500">*</span></Label>
+                                <Select value={formData.credentialId ? String(formData.credentialId) : ''} onValueChange={(v) => handleChange('credentialId', parseInt(v))}>
+                                    <SelectTrigger><SelectValue placeholder="Select Drive account" /></SelectTrigger>
+                                    <SelectContent>
+                                        {credentials?.filter((c) => c.type === 'google-drive').map((c) => (
+                                            <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                                        ))}
+                                        {credentials?.filter((c) => c.type === 'google-drive').length === 0 && (
+                                            <SelectItem disabled value="__none">No Drive credentials — connect one first</SelectItem>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                                {credentials?.filter((c) => c.type === 'google-drive').length === 0 && (
+                                    <Button size="sm" variant="outline" className="w-full gap-2" onClick={() => driveOAuthMutation.mutate()} disabled={driveOAuthMutation.isPending}>
+                                        <SiGoogledrive className="w-4 h-4 text-blue-500" />
+                                        {driveOAuthMutation.isPending ? 'Connecting...' : 'Connect Google Drive'}
+                                    </Button>
+                                )}
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Operation</Label>
+                                <Select value={formData.operation || 'list'} onValueChange={(v) => handleChange('operation', v)}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="list">List Files</SelectItem>
+                                        <SelectItem value="get">Get File</SelectItem>
+                                        <SelectItem value="upload">Upload File</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {formData.operation === 'list' && (
+                                <div className="space-y-2">
+                                    <Label>Search Query (optional)</Label>
+                                    <Input placeholder="name contains 'report'" value={formData.query || ''} onChange={(e) => handleChange('query', e.target.value)} />
+                                </div>
+                            )}
+                            {formData.operation === 'get' && (
+                                <div className="space-y-2">
+                                    <Label>File ID <span className="text-red-500">*</span></Label>
+                                    <Input placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms" value={formData.fileId || ''} onChange={(e) => handleChange('fileId', e.target.value)} />
+                                </div>
+                            )}
+                            {formData.operation === 'upload' && (
+                                <>
+                                    <div className="space-y-2">
+                                        <Label>File Name <span className="text-red-500">*</span></Label>
+                                        <Input placeholder="report.txt" value={formData.fileName || ''} onChange={(e) => handleChange('fileName', e.target.value)} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Content <span className="text-red-500">*</span></Label>
+                                        <Textarea placeholder="{{$prev.text}}" value={formData.content || ''} onChange={(e) => handleChange('content', e.target.value)} className="h-20" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Folder ID (optional)</Label>
+                                        <Input placeholder="Leave empty for root" value={formData.folderId || ''} onChange={(e) => handleChange('folderId', e.target.value)} />
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
+
+                    {node.type === 'google-sheets' && (
+                        <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-border">
+                            <div className="space-y-2">
+                                <Label>Google Sheets Credential <span className="text-red-500">*</span></Label>
+                                <Select value={formData.credentialId ? String(formData.credentialId) : ''} onValueChange={(v) => handleChange('credentialId', parseInt(v))}>
+                                    <SelectTrigger><SelectValue placeholder="Select Sheets account" /></SelectTrigger>
+                                    <SelectContent>
+                                        {credentials?.filter((c) => c.type === 'google-sheets').map((c) => (
+                                            <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                                        ))}
+                                        {credentials?.filter((c) => c.type === 'google-sheets').length === 0 && (
+                                            <SelectItem disabled value="__none">No Sheets credentials — connect one first</SelectItem>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                                {credentials?.filter((c) => c.type === 'google-sheets').length === 0 && (
+                                    <Button size="sm" variant="outline" className="w-full gap-2" onClick={() => sheetsOAuthMutation.mutate()} disabled={sheetsOAuthMutation.isPending}>
+                                        <SiGooglesheets className="w-4 h-4 text-[#0F9D58]" />
+                                        {sheetsOAuthMutation.isPending ? 'Connecting...' : 'Connect Google Sheets'}
+                                    </Button>
+                                )}
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Operation</Label>
+                                <Select value={formData.operation || 'read'} onValueChange={(v) => handleChange('operation', v)}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="read">Read Rows</SelectItem>
+                                        <SelectItem value="append">Append Rows</SelectItem>
+                                        <SelectItem value="update">Update Range</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Spreadsheet ID <span className="text-red-500">*</span></Label>
+                                <Input placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms" value={formData.spreadsheetId || ''} onChange={(e) => handleChange('spreadsheetId', e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Range</Label>
+                                <Input placeholder="Sheet1!A1:Z100" value={formData.range || ''} onChange={(e) => handleChange('range', e.target.value)} />
+                            </div>
+                            {(formData.operation === 'append' || formData.operation === 'update') && (
+                                <div className="space-y-2">
+                                    <Label>Values (JSON 2D array) <span className="text-red-500">*</span></Label>
+                                    <Textarea className="font-mono text-xs h-24" placeholder='[["col1", "col2"],["val1", "val2"]]' value={formData.values || ''} onChange={(e) => handleChange('values', e.target.value)} />
+                                    <p className="text-xs text-muted-foreground">Use {'{{'} $prev.field {'}}'}  to reference previous node output.</p>
                                 </div>
                             )}
                         </div>

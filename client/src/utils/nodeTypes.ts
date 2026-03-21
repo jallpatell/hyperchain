@@ -1,4 +1,5 @@
 import { Webhook, Globe, Code, Bot, Database, Mail } from 'lucide-react';
+import { SiSlack, SiGoogledrive, SiGooglesheets } from 'react-icons/si';
 
 export const NODE_TYPES = [
     {
@@ -54,6 +55,33 @@ export const NODE_TYPES = [
         iconColor: 'text-red-500',
         borderColor: 'border-red-200',
         dotColor: 'bg-red-500',
+    },
+    {
+        type: 'slack',
+        label: 'Slack',
+        icon: SiSlack,
+        bgColor: 'bg-[#4A154B]/10',
+        iconColor: 'text-[#4A154B]',
+        borderColor: 'border-[#4A154B]/30',
+        dotColor: 'bg-[#4A154B]',
+    },
+    {
+        type: 'google-drive',
+        label: 'Google Drive',
+        icon: SiGoogledrive,
+        bgColor: 'bg-blue-50',
+        iconColor: 'text-blue-500',
+        borderColor: 'border-blue-200',
+        dotColor: 'bg-blue-500',
+    },
+    {
+        type: 'google-sheets',
+        label: 'Google Sheets',
+        icon: SiGooglesheets,
+        bgColor: 'bg-green-50',
+        iconColor: 'text-[#0F9D58]',
+        borderColor: 'border-green-200',
+        dotColor: 'bg-[#0F9D58]',
     },
 ] as const;
 

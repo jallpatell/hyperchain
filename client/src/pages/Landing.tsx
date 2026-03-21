@@ -538,7 +538,7 @@ export default function Landing() {
             NO CREDIT CARD · FREE UP TO 1,000 TASKS/MONTH · SETUP IN 2 MIN
           </p> */}
         </div>
-        <div classNa    me="relative z-10 mt-16 w-full max-w-4xl mx-auto px-6 animate-float">
+        <div className="relative z-10 mt-16 w-full max-w-4xl mx-auto px-6 animate-float">
           <div className="rounded-2xl border border-[#e5e7eb] bg-white shadow-2xl overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-[#F1F2F4] bg-[#F1F2F4]">
               <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />

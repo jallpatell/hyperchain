@@ -81,6 +81,18 @@ function validateNodeInputs(node: WorkflowNode): string | null {
             if (!data.subject) return `[${node.id}] Missing required field: subject`;
             if (!data.body) return `[${node.id}] Missing required field: body`;
             break;
+        case 'slack':
+            if (!data.credentialId) return `[${node.id}] Missing required field: credentialId`;
+            if (!data.channel) return `[${node.id}] Missing required field: channel`;
+            if (!data.text) return `[${node.id}] Missing required field: text`;
+            break;
+        case 'google-drive':
+            if (!data.credentialId) return `[${node.id}] Missing required field: credentialId`;
+            break;
+        case 'google-sheets':
+            if (!data.credentialId) return `[${node.id}] Missing required field: credentialId`;
+            if (!data.spreadsheetId) return `[${node.id}] Missing required field: spreadsheetId`;
+            break;
     }
     return null;
 }

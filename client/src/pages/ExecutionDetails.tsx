@@ -163,7 +163,7 @@ export default function ExecutionDetails() {
               <div>
                 <h1 className="text-xl font-bold">Execution #{execution.id}</h1>
                 <p className="text-sm text-muted-foreground">
-                  {execution.name || `Workflow ${execution.workflowId}`}
+                  {`Workflow ${execution.workflowId}`}
                 </p>
               </div>
             </div>
