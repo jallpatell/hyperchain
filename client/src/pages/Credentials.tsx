@@ -209,14 +209,13 @@ export default function Credentials() {
                         </DialogContent>
                     </Dialog>
                 </div>
-
+                
                 {successMessage && (
                     <Alert className={`mb-6 ${successMessage.startsWith('✗') ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
                         <CheckCircle className={`h-4 w-4 ${successMessage.startsWith('✗') ? 'text-red-600' : 'text-green-600'}`} />
                         <AlertDescription className={successMessage.startsWith('✗') ? 'text-red-800' : 'text-green-800'}>{successMessage}</AlertDescription>
                     </Alert>
                 )}
-
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {isLoading
                         ? [1, 2, 3].map((i) => <div key={i} className="h-40 rounded-xl bg-card border border-border animate-pulse" />)

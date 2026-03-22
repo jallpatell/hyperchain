@@ -76,7 +76,7 @@ app.use(requestLoggingMiddleware);
 
     // Starter Server. [ Remote Access Enabled ]
     const port = parseInt(process.env.PORT || '5000', 10);
-    const host = process.env.HOST || '127.0.0.1';
+    const host = process.env.HOST || '0.0.0.0';
 
     httpServer.listen(port, host, () => {
         logInfo('server_started', { host, port });
