@@ -495,3 +495,5 @@ export function Canvas(props: CanvasProps) {
         </ReactFlowProvider>
     );
 }
+
+// [UI] Popover portal anchor repositioning on scroll
