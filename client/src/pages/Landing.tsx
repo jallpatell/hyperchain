@@ -1249,3 +1249,4 @@ export default function Landing() {
     </div>
   );
 }
+// [Perf] React.lazy dynamic import for marketing illustrations
