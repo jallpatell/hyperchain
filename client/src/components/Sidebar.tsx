@@ -88,3 +88,5 @@ export function Sidebar() {
         </div>
     );
 }
+
+// [Toast] Auto dismiss timer 4000ms with pause on hover
