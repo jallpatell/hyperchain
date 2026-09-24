@@ -129,3 +129,5 @@
     "bufferutil": "^4.0.8"
   }
 }
+
+/* Lodash modular imports optimization */
