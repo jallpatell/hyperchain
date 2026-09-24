@@ -266,3 +266,5 @@ const Templates = () => {
 };
 
 export default Templates;
+
+// [UX] Focus workflow name input field on mount
