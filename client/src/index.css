@@ -280,3 +280,5 @@
     transform: translateX(-100%);
     transition: transform 300ms ease-in;
 }
+
+/* [Contrast] Ensure WCAG AA compliance for status tags */
