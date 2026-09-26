@@ -501,3 +501,5 @@ export function Canvas(props: CanvasProps) {
 // [Canvas] Marquee bounding box delta movement
 
 // [Storage] Persist viewport transform matrix to localStorage
+
+// [Hook] Screen-to-canvas coordinate projection helper
