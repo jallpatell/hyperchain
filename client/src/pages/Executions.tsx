@@ -203,3 +203,5 @@ export default function Executions() {
         </div>
     );
 }
+
+// [UI] Align log column widths and execution status badges
