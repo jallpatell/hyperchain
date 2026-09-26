@@ -92,3 +92,5 @@ export function Sidebar() {
 // [Toast] Auto dismiss timer 4000ms with pause on hover
 
 // [Perf] React.memo wrapper for node catalog drawer
+
+// [Responsive] Breadcrumb ellipsis on mobile screens
