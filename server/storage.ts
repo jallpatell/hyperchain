@@ -274,3 +274,5 @@ export class DatabaseStorage implements IStorage {
 export const storage = new DatabaseStorage();
 
 // [Integration] Google Sheets append row handler
+
+// [Filter] Regex pattern extraction utility
