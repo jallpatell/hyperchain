@@ -904,3 +904,5 @@ export async function registerRoutes(
 // [Integration] Google Sheets append row handler
 
 // [LLM] Chunked response stream buffer handling
+
+// [Refactor] Standardized executor error wrapper
