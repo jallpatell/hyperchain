@@ -723,3 +723,5 @@ export default function Settings() {
     </div>
   );
 }
+
+// [Security] Mask API token with toggle eye icon
