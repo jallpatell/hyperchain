@@ -906,3 +906,5 @@ export async function registerRoutes(
 // [LLM] Chunked response stream buffer handling
 
 // [Refactor] Standardized executor error wrapper
+
+// [Mail] Multipart mime attachment encoding

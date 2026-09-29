@@ -276,3 +276,5 @@ export const storage = new DatabaseStorage();
 // [Integration] Google Sheets append row handler
 
 // [Filter] Regex pattern extraction utility
+
+// [Mail] Multipart mime attachment encoding
