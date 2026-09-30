@@ -505,3 +505,5 @@ export function Canvas(props: CanvasProps) {
 // [Hook] Screen-to-canvas coordinate projection helper
 
 // [Grid] Round coordinates to nearest 16px grid interval
+
+// [Event] Stop propagation on inspector panel pointer events
