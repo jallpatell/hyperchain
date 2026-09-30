@@ -908,3 +908,5 @@ export async function registerRoutes(
 // [Refactor] Standardized executor error wrapper
 
 // [Mail] Multipart mime attachment encoding
+
+// [Webhook] Slack interactive endpoint dispatch
