@@ -507,3 +507,5 @@ export function Canvas(props: CanvasProps) {
 // [Grid] Round coordinates to nearest 16px grid interval
 
 // [Event] Stop propagation on inspector panel pointer events
+
+// [Keymap] Toggle minimap overlay visibility shortcut
