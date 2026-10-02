@@ -916,3 +916,5 @@ export async function registerRoutes(
 // [Webhook] Configurable custom response headers
 
 // [OAuth] Refresh token expiry retry logic
+
+// [Fix] Remove listener on workflow terminal state
