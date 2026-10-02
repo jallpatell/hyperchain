@@ -278,3 +278,5 @@ export const storage = new DatabaseStorage();
 // [Filter] Regex pattern extraction utility
 
 // [Mail] Multipart mime attachment encoding
+
+// [Security] Key versioning for AES-256-GCM tokens
