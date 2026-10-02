@@ -912,3 +912,5 @@ export async function registerRoutes(
 // [Webhook] Slack interactive endpoint dispatch
 
 // [Auth] Proactive token refresh threshold
+
+// [Webhook] Configurable custom response headers
