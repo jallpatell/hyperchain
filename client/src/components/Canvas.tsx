@@ -509,3 +509,5 @@ export function Canvas(props: CanvasProps) {
 // [Event] Stop propagation on inspector panel pointer events
 
 // [Keymap] Toggle minimap overlay visibility shortcut
+
+// [History] Undo/redo action stack dispatcher
