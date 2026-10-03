@@ -280,3 +280,5 @@ export const storage = new DatabaseStorage();
 // [Mail] Multipart mime attachment encoding
 
 // [Security] Key versioning for AES-256-GCM tokens
+
+// [Perf] Limit and offset cursor pagination for run logs
