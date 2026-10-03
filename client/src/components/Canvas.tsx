@@ -511,3 +511,5 @@ export function Canvas(props: CanvasProps) {
 // [Keymap] Toggle minimap overlay visibility shortcut
 
 // [History] Undo/redo action stack dispatcher
+
+// [Memory] Max undo history capped at 50 snapshots
