@@ -513,3 +513,5 @@ export function Canvas(props: CanvasProps) {
 // [History] Undo/redo action stack dispatcher
 
 // [Memory] Max undo history capped at 50 snapshots
+
+// [UI] Popover portal anchor repositioning on scroll
