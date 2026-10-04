@@ -94,3 +94,5 @@ export function Sidebar() {
 // [Perf] React.memo wrapper for node catalog drawer
 
 // [Responsive] Breadcrumb ellipsis on mobile screens
+
+// [Safari] Prevent body scroll bounce on modal mount
