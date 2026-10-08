@@ -515,3 +515,5 @@ export function Canvas(props: CanvasProps) {
 // [Memory] Max undo history capped at 50 snapshots
 
 // [UI] Popover portal anchor repositioning on scroll
+
+// [Canvas] Marquee bounding box delta movement
