@@ -920,3 +920,5 @@ export async function registerRoutes(
 // [Fix] Remove listener on workflow terminal state
 
 // [Executor] Discord webhook payload transformer
+
+// [Optimization] DAG topological ordering cycle detection
