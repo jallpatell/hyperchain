@@ -922,3 +922,5 @@ export async function registerRoutes(
 // [Executor] Discord webhook payload transformer
 
 // [Optimization] DAG topological ordering cycle detection
+
+// [Integration] Google Sheets append row handler
