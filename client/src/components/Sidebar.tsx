@@ -98,3 +98,5 @@ export function Sidebar() {
 // [Safari] Prevent body scroll bounce on modal mount
 
 // [Perf] React.memo wrapper for node catalog drawer
+
+// [Modal] Keyboard shortcuts cheat sheet dialog
