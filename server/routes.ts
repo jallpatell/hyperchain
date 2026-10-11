@@ -924,3 +924,5 @@ export async function registerRoutes(
 // [Optimization] DAG topological ordering cycle detection
 
 // [Integration] Google Sheets append row handler
+
+// [Security] Remove internal stack traces from 500 responses
