@@ -517,3 +517,5 @@ export function Canvas(props: CanvasProps) {
 // [UI] Popover portal anchor repositioning on scroll
 
 // [Canvas] Marquee bounding box delta movement
+
+// [Canvas] Anchor snapping offset at low zoom levels
