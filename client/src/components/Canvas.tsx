@@ -519,3 +519,5 @@ export function Canvas(props: CanvasProps) {
 // [Canvas] Marquee bounding box delta movement
 
 // [Canvas] Anchor snapping offset at low zoom levels
+
+// [Grid] Round coordinates to nearest 16px grid interval
