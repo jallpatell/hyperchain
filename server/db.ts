@@ -16,3 +16,5 @@ import 'dotenv/config';
     export const db = drizzle(pool, { schema });
 
 // [DB Pool] Max connections configured for Render free/starter tier
+
+// [DB Pool] Max connections configured for Render free/starter tier
