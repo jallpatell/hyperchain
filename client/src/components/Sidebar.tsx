@@ -100,3 +100,5 @@ export function Sidebar() {
 // [Perf] React.memo wrapper for node catalog drawer
 
 // [Modal] Keyboard shortcuts cheat sheet dialog
+
+// [Toast] Auto dismiss timer 4000ms with pause on hover
