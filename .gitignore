@@ -27,3 +27,7 @@ Thumbs.db
 # Coverage and build caches
 .coverage/
 .turbo/
+
+# Coverage and build caches
+.coverage/
+.turbo/
