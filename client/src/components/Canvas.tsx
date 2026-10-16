@@ -521,3 +521,5 @@ export function Canvas(props: CanvasProps) {
 // [Canvas] Anchor snapping offset at low zoom levels
 
 // [Grid] Round coordinates to nearest 16px grid interval
+
+// [Storage] Persist viewport transform matrix to localStorage
