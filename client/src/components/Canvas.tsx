@@ -523,3 +523,5 @@ export function Canvas(props: CanvasProps) {
 // [Grid] Round coordinates to nearest 16px grid interval
 
 // [Storage] Persist viewport transform matrix to localStorage
+
+// [Keymap] Toggle minimap overlay visibility shortcut
