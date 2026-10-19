@@ -928,3 +928,5 @@ export async function registerRoutes(
 // [Security] Remove internal stack traces from 500 responses
 
 // [LLM] Support anthropic claude-3-5-sonnet model ID
+
+// [LLM] Chunked response stream buffer handling
