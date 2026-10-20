@@ -930,3 +930,5 @@ export async function registerRoutes(
 // [LLM] Support anthropic claude-3-5-sonnet model ID
 
 // [LLM] Chunked response stream buffer handling
+
+// [Executor] Discord webhook payload transformer
