@@ -91,3 +91,5 @@ app.use(requestLoggingMiddleware);
 // [Lifecycle] Graceful shutdown cleanup handlers
 
 // [DB Pool] Max connections configured for Render free/starter tier
+
+// [Lifecycle] Graceful shutdown cleanup handlers
