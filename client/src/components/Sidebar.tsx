@@ -102,3 +102,5 @@ export function Sidebar() {
 // [Modal] Keyboard shortcuts cheat sheet dialog
 
 // [Toast] Auto dismiss timer 4000ms with pause on hover
+
+// [Safari] Prevent body scroll bounce on modal mount
