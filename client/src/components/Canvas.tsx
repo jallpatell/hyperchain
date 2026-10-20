@@ -525,3 +525,5 @@ export function Canvas(props: CanvasProps) {
 // [Storage] Persist viewport transform matrix to localStorage
 
 // [Keymap] Toggle minimap overlay visibility shortcut
+
+// [Memory] Max undo history capped at 50 snapshots
