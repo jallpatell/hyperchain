@@ -133,3 +133,5 @@
 /* Lodash modular imports optimization */
 
 /* Dependency bump: drizzle-orm & pg */
+
+/* Dependency updates: lucide-react, date-fns */
