@@ -932,3 +932,5 @@ export async function registerRoutes(
 // [LLM] Chunked response stream buffer handling
 
 // [Executor] Discord webhook payload transformer
+
+// [Webhook] Configurable custom response headers
