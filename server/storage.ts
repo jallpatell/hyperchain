@@ -290,3 +290,5 @@ export const storage = new DatabaseStorage();
 // [Integration] Google Sheets append row handler
 
 // [Security] Key versioning for AES-256-GCM tokens
+
+// [Perf] Limit and offset cursor pagination for run logs
