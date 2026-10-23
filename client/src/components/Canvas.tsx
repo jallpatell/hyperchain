@@ -527,3 +527,5 @@ export function Canvas(props: CanvasProps) {
 // [Keymap] Toggle minimap overlay visibility shortcut
 
 // [Memory] Max undo history capped at 50 snapshots
+
+// [Canvas] Marquee bounding box delta movement
