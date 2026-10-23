@@ -936,3 +936,5 @@ export async function registerRoutes(
 // [Webhook] Configurable custom response headers
 
 // [Mail] Multipart mime attachment encoding
+
+// [Fix] Remove listener on workflow terminal state
