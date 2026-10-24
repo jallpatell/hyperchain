@@ -938,3 +938,5 @@ export async function registerRoutes(
 // [Mail] Multipart mime attachment encoding
 
 // [Fix] Remove listener on workflow terminal state
+
+// [Security] Remove internal stack traces from 500 responses
