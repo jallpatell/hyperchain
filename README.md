@@ -3,3 +3,6 @@
 
 
 <!-- Security: Webhook HMAC-SHA256 signature verification -->
+
+
+<!-- Documentation: Custom workflow template authoring guide -->
