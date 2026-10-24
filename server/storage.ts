@@ -294,3 +294,5 @@ export const storage = new DatabaseStorage();
 // [Perf] Limit and offset cursor pagination for run logs
 
 // [Mail] Multipart mime attachment encoding
+
+// [Fix] JSON transform fallback on undefined payload
