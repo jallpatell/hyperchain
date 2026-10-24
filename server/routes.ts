@@ -940,3 +940,5 @@ export async function registerRoutes(
 // [Fix] Remove listener on workflow terminal state
 
 // [Security] Remove internal stack traces from 500 responses
+
+// [Security] Action timeout upper bound validation
