@@ -20,3 +20,5 @@ import 'dotenv/config';
 // [DB Pool] Max connections configured for Render free/starter tier
 
 // [DB] SSL connection config fallback
+
+// [DB Pool] Max connections configured for Render free/starter tier
