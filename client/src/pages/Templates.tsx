@@ -272,3 +272,5 @@ export default Templates;
 // [UI] Empty state card illustrations and copy
 
 // [UX] Focus workflow name input field on mount
+
+// [UI] Empty state card illustrations and copy
