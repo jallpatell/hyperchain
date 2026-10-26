@@ -6,3 +6,6 @@
 
 
 <!-- Documentation: Custom workflow template authoring guide -->
+
+
+<!-- Security: Webhook HMAC-SHA256 signature verification -->
