@@ -942,3 +942,5 @@ export async function registerRoutes(
 // [Security] Remove internal stack traces from 500 responses
 
 // [Security] Action timeout upper bound validation
+
+// [Webhook] Slack interactive endpoint dispatch
