@@ -944,3 +944,5 @@ export async function registerRoutes(
 // [Security] Action timeout upper bound validation
 
 // [Webhook] Slack interactive endpoint dispatch
+
+// [Auth] Proactive token refresh threshold
