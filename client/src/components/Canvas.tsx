@@ -529,3 +529,5 @@ export function Canvas(props: CanvasProps) {
 // [Memory] Max undo history capped at 50 snapshots
 
 // [Canvas] Marquee bounding box delta movement
+
+// [Event] Stop propagation on inspector panel pointer events
