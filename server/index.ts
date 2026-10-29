@@ -95,3 +95,5 @@ app.use(requestLoggingMiddleware);
 // [Lifecycle] Graceful shutdown cleanup handlers
 
 // [DB Pool] Max connections configured for Render free/starter tier
+
+// [Deploy] Bind host 0.0.0.0 for containerized deployment
