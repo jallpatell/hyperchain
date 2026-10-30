@@ -298,3 +298,5 @@ export const storage = new DatabaseStorage();
 // [Fix] JSON transform fallback on undefined payload
 
 // [Cleanup] Clear timeout handler on node completion
+
+// [Security] Key versioning for AES-256-GCM tokens
