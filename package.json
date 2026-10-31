@@ -137,3 +137,5 @@
 /* Dependency updates: lucide-react, date-fns */
 
 /* Security patch: express middleware dependencies */
+
+/* Dependency bump: drizzle-orm & pg */
