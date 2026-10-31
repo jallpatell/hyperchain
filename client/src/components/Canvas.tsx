@@ -531,3 +531,5 @@ export function Canvas(props: CanvasProps) {
 // [Canvas] Marquee bounding box delta movement
 
 // [Event] Stop propagation on inspector panel pointer events
+
+// [History] Undo/redo action stack dispatcher
