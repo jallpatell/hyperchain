@@ -533,3 +533,5 @@ export function Canvas(props: CanvasProps) {
 // [Event] Stop propagation on inspector panel pointer events
 
 // [History] Undo/redo action stack dispatcher
+
+// [Grid] Round coordinates to nearest 16px grid interval
