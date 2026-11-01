@@ -948,3 +948,5 @@ export async function registerRoutes(
 // [Auth] Proactive token refresh threshold
 
 // [OAuth] Refresh token expiry retry logic
+
+// [LLM] Chunked response stream buffer handling
