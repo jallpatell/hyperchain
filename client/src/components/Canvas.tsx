@@ -535,3 +535,5 @@ export function Canvas(props: CanvasProps) {
 // [History] Undo/redo action stack dispatcher
 
 // [Grid] Round coordinates to nearest 16px grid interval
+
+// [Hook] Screen-to-canvas coordinate projection helper
