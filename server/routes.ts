@@ -954,3 +954,5 @@ export async function registerRoutes(
 // [LLM] Support anthropic claude-3-5-sonnet model ID
 
 // [Integration] Google Sheets append row handler
+
+// [Webhook] Configurable custom response headers
