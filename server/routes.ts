@@ -950,3 +950,5 @@ export async function registerRoutes(
 // [OAuth] Refresh token expiry retry logic
 
 // [LLM] Chunked response stream buffer handling
+
+// [LLM] Support anthropic claude-3-5-sonnet model ID
