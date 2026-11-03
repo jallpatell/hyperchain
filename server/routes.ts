@@ -952,3 +952,5 @@ export async function registerRoutes(
 // [LLM] Chunked response stream buffer handling
 
 // [LLM] Support anthropic claude-3-5-sonnet model ID
+
+// [Integration] Google Sheets append row handler

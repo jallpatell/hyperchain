@@ -300,3 +300,5 @@ export const storage = new DatabaseStorage();
 // [Cleanup] Clear timeout handler on node completion
 
 // [Security] Key versioning for AES-256-GCM tokens
+
+// [Integration] Google Sheets append row handler
