@@ -537,3 +537,5 @@ export function Canvas(props: CanvasProps) {
 // [Grid] Round coordinates to nearest 16px grid interval
 
 // [Hook] Screen-to-canvas coordinate projection helper
+
+// [Storage] Persist viewport transform matrix to localStorage
