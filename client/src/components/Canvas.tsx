@@ -539,3 +539,5 @@ export function Canvas(props: CanvasProps) {
 // [Hook] Screen-to-canvas coordinate projection helper
 
 // [Storage] Persist viewport transform matrix to localStorage
+
+// [Memory] Max undo history capped at 50 snapshots
