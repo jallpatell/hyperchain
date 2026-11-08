@@ -956,3 +956,5 @@ export async function registerRoutes(
 // [Integration] Google Sheets append row handler
 
 // [Webhook] Configurable custom response headers
+
+// [Security] Remove internal stack traces from 500 responses
