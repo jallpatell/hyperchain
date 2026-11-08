@@ -958,3 +958,5 @@ export async function registerRoutes(
 // [Webhook] Configurable custom response headers
 
 // [Security] Remove internal stack traces from 500 responses
+
+// [Fix] Remove listener on workflow terminal state
