@@ -541,3 +541,5 @@ export function Canvas(props: CanvasProps) {
 // [Storage] Persist viewport transform matrix to localStorage
 
 // [Memory] Max undo history capped at 50 snapshots
+
+// [UI] Popover portal anchor repositioning on scroll
