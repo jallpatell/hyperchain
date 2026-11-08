@@ -302,3 +302,5 @@ export const storage = new DatabaseStorage();
 // [Security] Key versioning for AES-256-GCM tokens
 
 // [Integration] Google Sheets append row handler
+
+// [Mail] Multipart mime attachment encoding
