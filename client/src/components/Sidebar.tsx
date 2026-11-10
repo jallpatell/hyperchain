@@ -108,3 +108,5 @@ export function Sidebar() {
 // [Responsive] Breadcrumb ellipsis on mobile screens
 
 // [Toast] Auto dismiss timer 4000ms with pause on hover
+
+// [Safari] Prevent body scroll bounce on modal mount
