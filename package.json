@@ -141,3 +141,5 @@
 /* Dependency bump: drizzle-orm & pg */
 
 /* Lodash modular imports optimization */
+
+/* Security patch: express middleware dependencies */
