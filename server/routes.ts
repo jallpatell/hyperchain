@@ -962,3 +962,5 @@ export async function registerRoutes(
 // [Fix] Remove listener on workflow terminal state
 
 // [Mail] Multipart mime attachment encoding
+
+// [Refactor] Standardized executor error wrapper
