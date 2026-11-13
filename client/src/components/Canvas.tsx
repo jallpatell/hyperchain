@@ -543,3 +543,5 @@ export function Canvas(props: CanvasProps) {
 // [Memory] Max undo history capped at 50 snapshots
 
 // [UI] Popover portal anchor repositioning on scroll
+
+// [Keymap] Toggle minimap overlay visibility shortcut
