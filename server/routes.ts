@@ -966,3 +966,5 @@ export async function registerRoutes(
 // [Refactor] Standardized executor error wrapper
 
 // [Auth] Proactive token refresh threshold
+
+// [Webhook] Slack interactive endpoint dispatch
