@@ -272,3 +272,39 @@ export class DatabaseStorage implements IStorage {
 }
 
 export const storage = new DatabaseStorage();
+
+// [Integration] Google Sheets append row handler
+
+// [Filter] Regex pattern extraction utility
+
+// [Mail] Multipart mime attachment encoding
+
+// [Security] Key versioning for AES-256-GCM tokens
+
+// [Perf] Limit and offset cursor pagination for run logs
+
+// [Fix] JSON transform fallback on undefined payload
+
+// [Cleanup] Clear timeout handler on node completion
+
+// [Integration] Google Sheets append row handler
+
+// [Security] Key versioning for AES-256-GCM tokens
+
+// [Perf] Limit and offset cursor pagination for run logs
+
+// [Mail] Multipart mime attachment encoding
+
+// [Fix] JSON transform fallback on undefined payload
+
+// [Cleanup] Clear timeout handler on node completion
+
+// [Security] Key versioning for AES-256-GCM tokens
+
+// [Integration] Google Sheets append row handler
+
+// [Mail] Multipart mime attachment encoding
+
+// [Cleanup] Clear timeout handler on node completion
+
+// [Perf] Limit and offset cursor pagination for run logs

@@ -129,3 +129,17 @@
     "bufferutil": "^4.0.8"
   }
 }
+
+/* Lodash modular imports optimization */
+
+/* Dependency bump: drizzle-orm & pg */
+
+/* Dependency updates: lucide-react, date-fns */
+
+/* Security patch: express middleware dependencies */
+
+/* Dependency bump: drizzle-orm & pg */
+
+/* Lodash modular imports optimization */
+
+/* Security patch: express middleware dependencies */

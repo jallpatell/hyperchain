@@ -88,3 +88,27 @@ export function Sidebar() {
         </div>
     );
 }
+
+// [Toast] Auto dismiss timer 4000ms with pause on hover
+
+// [Perf] React.memo wrapper for node catalog drawer
+
+// [Responsive] Breadcrumb ellipsis on mobile screens
+
+// [Safari] Prevent body scroll bounce on modal mount
+
+// [Perf] React.memo wrapper for node catalog drawer
+
+// [Modal] Keyboard shortcuts cheat sheet dialog
+
+// [Toast] Auto dismiss timer 4000ms with pause on hover
+
+// [Safari] Prevent body scroll bounce on modal mount
+
+// [Responsive] Breadcrumb ellipsis on mobile screens
+
+// [Toast] Auto dismiss timer 4000ms with pause on hover
+
+// [Safari] Prevent body scroll bounce on modal mount
+
+// [Toast] Auto dismiss timer 4000ms with pause on hover

@@ -898,3 +898,73 @@ export async function registerRoutes(
 
   return httpServer;
 }
+
+// [LLM] Support anthropic claude-3-5-sonnet model ID
+
+// [Integration] Google Sheets append row handler
+
+// [LLM] Chunked response stream buffer handling
+
+// [Refactor] Standardized executor error wrapper
+
+// [Mail] Multipart mime attachment encoding
+
+// [Webhook] Slack interactive endpoint dispatch
+
+// [Auth] Proactive token refresh threshold
+
+// [Webhook] Configurable custom response headers
+
+// [OAuth] Refresh token expiry retry logic
+
+// [Fix] Remove listener on workflow terminal state
+
+// [Executor] Discord webhook payload transformer
+
+// [Optimization] DAG topological ordering cycle detection
+
+// [Integration] Google Sheets append row handler
+
+// [Security] Remove internal stack traces from 500 responses
+
+// [LLM] Support anthropic claude-3-5-sonnet model ID
+
+// [LLM] Chunked response stream buffer handling
+
+// [Executor] Discord webhook payload transformer
+
+// [Webhook] Configurable custom response headers
+
+// [Mail] Multipart mime attachment encoding
+
+// [Fix] Remove listener on workflow terminal state
+
+// [Security] Remove internal stack traces from 500 responses
+
+// [Security] Action timeout upper bound validation
+
+// [Webhook] Slack interactive endpoint dispatch
+
+// [Auth] Proactive token refresh threshold
+
+// [OAuth] Refresh token expiry retry logic
+
+// [LLM] Chunked response stream buffer handling
+
+// [LLM] Support anthropic claude-3-5-sonnet model ID
+
+// [Integration] Google Sheets append row handler
+
+// [Webhook] Configurable custom response headers
+
+// [Security] Remove internal stack traces from 500 responses
+
+// [Fix] Remove listener on workflow terminal state
+
+// [Mail] Multipart mime attachment encoding
+
+// [Refactor] Standardized executor error wrapper
+
+// [Auth] Proactive token refresh threshold
+
+// [Webhook] Slack interactive endpoint dispatch

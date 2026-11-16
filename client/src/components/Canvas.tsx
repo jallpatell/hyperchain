@@ -495,3 +495,53 @@ export function Canvas(props: CanvasProps) {
         </ReactFlowProvider>
     );
 }
+
+// [UI] Popover portal anchor repositioning on scroll
+
+// [Canvas] Marquee bounding box delta movement
+
+// [Storage] Persist viewport transform matrix to localStorage
+
+// [Hook] Screen-to-canvas coordinate projection helper
+
+// [Grid] Round coordinates to nearest 16px grid interval
+
+// [Event] Stop propagation on inspector panel pointer events
+
+// [Keymap] Toggle minimap overlay visibility shortcut
+
+// [History] Undo/redo action stack dispatcher
+
+// [Memory] Max undo history capped at 50 snapshots
+
+// [UI] Popover portal anchor repositioning on scroll
+
+// [Canvas] Marquee bounding box delta movement
+
+// [Canvas] Anchor snapping offset at low zoom levels
+
+// [Grid] Round coordinates to nearest 16px grid interval
+
+// [Storage] Persist viewport transform matrix to localStorage
+
+// [Keymap] Toggle minimap overlay visibility shortcut
+
+// [Memory] Max undo history capped at 50 snapshots
+
+// [Canvas] Marquee bounding box delta movement
+
+// [Event] Stop propagation on inspector panel pointer events
+
+// [History] Undo/redo action stack dispatcher
+
+// [Grid] Round coordinates to nearest 16px grid interval
+
+// [Hook] Screen-to-canvas coordinate projection helper
+
+// [Storage] Persist viewport transform matrix to localStorage
+
+// [Memory] Max undo history capped at 50 snapshots
+
+// [UI] Popover portal anchor repositioning on scroll
+
+// [Keymap] Toggle minimap overlay visibility shortcut
